@@ -114,7 +114,11 @@ def validate_log(path: Path, warnings: list[str], errors: list[str], max_accurac
     if len(start_times) > 1:
         errors.append("LOG_MULTIPLE_RECORDING_START_TIMES")
     start = valid[0]["recording_start_utc_ms"]
-    result["recording_start_utc"] = dt.datetime.fromtimestamp(start / 1000, tz=dt.timezone.utc).isoformat(timespec="milliseconds")
+    try:
+        result["recording_start_utc"] = dt.datetime.fromtimestamp(start / 1000, tz=dt.timezone.utc).isoformat(timespec="milliseconds")
+    except (ValueError, OverflowError, OSError):
+        errors.append("LOG_RECORDING_START_OUT_OF_RANGE")
+        return result
     result["first_elapsed_ms"] = valid[0]["video_elapsed_ms"]
     result["last_elapsed_ms"] = valid[-1]["video_elapsed_ms"]
     result["usable_fix_count_at_max_accuracy"] = sum(r.get("accuracy_m") is not None and r["accuracy_m"] <= max_accuracy_m for r in valid) if "accuracy_m" in parsed[0] else None

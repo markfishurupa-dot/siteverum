@@ -19,3 +19,7 @@ Added local CLI `services/processor/process.py` that validates a loose pair, rea
 Opt-in `tests/test_real_sample.py` safely extracts the original private sample, compares ZIP-derived and loose inputs and outputs, checks seven references/images and GeoPackage row count, verifies archive CRC and the final 7.8662 s PTS. With private sample environment variables set, `python -m unittest discover -s tests -v`: 4 tests passed. ZIP extraction in this test is internal; no upload path exists yet. No map, Docker install or publication test passed.
 
 Docker Desktop was stopped; started the installed desktop process and `docker info` now reports server 29.9.2. No Compose stack has been deployed.
+
+## Preflight robustness
+
+Added regression checks for legitimate pre-recording rows and extreme timestamp values. The latter now returns a validation error instead of raising an uncaught exception. `python -m unittest discover -s tests -v` passed 5 synthetic tests, with the private sample test skipped when its environment variables were absent. Full-history limited-pattern scan found no matching secrets or prohibited file extensions; it is not a complete security or license audit. The remote remains private and the branch has not been pushed.
