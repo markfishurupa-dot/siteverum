@@ -7,16 +7,17 @@ import json
 import math
 import os
 import shutil
-import sqlite3
-import struct
 import subprocess
 import tempfile
-import zipfile
 from pathlib import Path
 if __package__:
     from . import preflight
+    from .coordinates import apply_correction, point_identity
+    from .exports import package_run, write_json, write_points
 else:
     import preflight
+    from coordinates import apply_correction, point_identity
+    from exports import package_run, write_json, write_points
 
 MAX_SNAP_SECONDS = 0.10
 
@@ -29,27 +30,6 @@ def frame_times(video):
     if not times or not all(math.isfinite(t) for t in times) or any(b < a for a,b in zip(times,times[1:])):
         raise ValueError("Video frame timestamps are missing or not ordered")
     return times
-
-def create_gpkg(path, rows):
-    con = sqlite3.connect(path)
-    try:
-        con.executescript("""
-        PRAGMA application_id=1196444487; PRAGMA user_version=10300;
-        CREATE TABLE gpkg_spatial_ref_sys (srs_name TEXT NOT NULL, srs_id INTEGER NOT NULL PRIMARY KEY, organization TEXT NOT NULL, organization_coordsys_id INTEGER NOT NULL, definition TEXT NOT NULL, description TEXT);
-        INSERT INTO gpkg_spatial_ref_sys VALUES ('Undefined Cartesian',-1,'NONE',-1,'undefined','undefined');
-        INSERT INTO gpkg_spatial_ref_sys VALUES ('Undefined geographic',0,'NONE',0,'undefined','undefined');
-        INSERT INTO gpkg_spatial_ref_sys VALUES ('WGS 84 geodetic',4326,'EPSG',4326,'GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433],AUTHORITY["EPSG","4326"]]','longitude/latitude');
-        CREATE TABLE gpkg_contents (table_name TEXT NOT NULL PRIMARY KEY, data_type TEXT NOT NULL, identifier TEXT UNIQUE, description TEXT DEFAULT '', last_change DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), min_x DOUBLE, min_y DOUBLE, max_x DOUBLE, max_y DOUBLE, srs_id INTEGER, FOREIGN KEY (srs_id) REFERENCES gpkg_spatial_ref_sys(srs_id));
-        CREATE TABLE gpkg_geometry_columns (table_name TEXT NOT NULL, column_name TEXT NOT NULL, geometry_type_name TEXT NOT NULL, srs_id INTEGER NOT NULL, z TINYINT NOT NULL, m TINYINT NOT NULL, PRIMARY KEY(table_name,column_name));
-        CREATE TABLE points (id INTEGER PRIMARY KEY, geom BLOB NOT NULL, frame_index INTEGER NOT NULL, image_path TEXT NOT NULL, requested_ms INTEGER NOT NULL, actual_pts REAL NOT NULL, lat REAL NOT NULL, lon REAL NOT NULL);
-        INSERT INTO gpkg_contents (table_name,data_type,identifier,srs_id) VALUES ('points','features','points',4326);
-        INSERT INTO gpkg_geometry_columns VALUES ('points','geom','POINT',4326,0,0);
-        """)
-        for r in rows:
-            geom = b'GP' + bytes([0,1]) + struct.pack('<i',4326) + struct.pack('<BIdd',1,1,r['lon'],r['lat'])
-            con.execute('INSERT INTO points (geom,frame_index,image_path,requested_ms,actual_pts,lat,lon) VALUES (?,?,?,?,?,?,?)',(geom,r['frame_index'],r['image_path'],r['requested_ms'],r['actual_pts'],r['lat'],r['lon']))
-        con.commit()
-    finally: con.close()
 
 def sampled_fixes(fixes, mode, interval, max_accuracy):
     usable = [r for r in fixes if int(r["video_elapsed_ms"]) >= 0 and
@@ -92,7 +72,8 @@ def sampled_fixes(fixes, mode, interval, max_accuracy):
 
 
 def run(video, log, output, max_snap=MAX_SNAP_SECONDS, *, sampling="gps_fix",
-        interval=1, max_accuracy=None, rotation=0, manual_points=(), checkpoint=lambda progress: None, package=True):
+        interval=1, max_accuracy=None, rotation=0, manual_points=(), checkpoint=lambda progress: None, package=True,
+        corrections=None):
     checkpoint(2)
     report=preflight.validate(video,log,None,20,True)
     if not report['can_process']: raise ValueError('Preflight failed: ' + ', '.join(report['errors']))
@@ -135,24 +116,39 @@ def run(video, log, output, max_snap=MAX_SNAP_SECONDS, *, sampling="gps_fix",
             subprocess.run(['ffmpeg','-nostdin','-v','error','-xerror','-protocol_whitelist','file','-threads','2','-i',str(video),'-map','0:v:0','-vf',f'select=eq(n\\,{index}){rotation_filter}','-frames:v','1','-q:v','2',str(tmp/image)],check=True,capture_output=True,timeout=300)
             subprocess.run(['ffmpeg','-nostdin','-v','error','-xerror','-protocol_whitelist','file','-i',str(tmp/image),'-f','null','-'],check=True,capture_output=True,timeout=60)
             rows.append({'frame_index':len(rows),'image_path':image,'requested_ms':ms,'actual_pts':times[index],'source_frame_index':index,'lat':float(fix['lat']),'lon':float(fix['lon']),'accuracy_m':fix.get('accuracy_m',''),'bearing':fix.get('bearing',''),
+                         'speed_mps':fix.get('speed_mps',''),'alt_m':fix.get('alt_m',''),
                          'manual':fix.get('manual',False),'interpolated':fix.get('interpolated',False),'fix_gap_ms':fix.get('fix_gap_ms',0)})
         if not rows: raise ValueError('No valid frames within tolerance')
-        with (tmp/'points.csv').open('w',newline='',encoding='utf-8') as f:
-            writer=csv.DictWriter(f,fieldnames=rows[0].keys());writer.writeheader();writer.writerows(rows)
-        features=[{'type':'Feature','geometry':{'type':'Point','coordinates':[r['lon'],r['lat']]},'properties':{k:v for k,v in r.items() if k not in ('lon','lat')}} for r in rows]
-        (tmp/'points.geojson').write_text(json.dumps({'type':'FeatureCollection','features':features}),encoding='utf-8')
-        coords=[[r['lon'],r['lat']] for r in rows if not r['manual']]
-        route={'type':'FeatureCollection','features':([{'type':'Feature','properties':{},'geometry':{'type':'LineString','coordinates':coords}}] if len(coords)>1 else [])}
-        (tmp/'route.geojson').write_text(json.dumps(route),encoding='utf-8')
+        features = [
+            {"type": "Feature", "geometry": {"type": "Point", "coordinates": [row["lon"], row["lat"]]},
+             "properties": {key: value for key, value in row.items() if key not in ("lon", "lat")}}
+            for row in rows
+        ]
+        recording = {"video_sha256": report["video"]["sha256"], "gps_sha256": report["gps"]["sha256"]}
+        if corrections:
+            for feature in features:
+                identity = point_identity(feature["properties"], recording, feature["geometry"]["coordinates"])
+                if identity in corrections:
+                    apply_correction(feature, identity, corrections[identity])
+        coords = [feature["geometry"]["coordinates"] for feature in features if not feature["properties"]["manual"]]
+        route = {"type": "FeatureCollection", "features": (
+            [{"type": "Feature", "properties": {}, "geometry": {"type": "LineString", "coordinates": coords}}]
+            if len(coords) > 1 else []
+        )}
         checkpoint(92)
-        create_gpkg(tmp/'points.gpkg',rows)
-        manifest={'schema_version':'2.0-draft','sampling':sampling,'rotation':rotation,'manual_points_added':sum(r['manual'] for r in rows),'interval':interval,'max_accuracy':max_accuracy,'max_snap_seconds':max_snap,'video_sha256':report['video']['sha256'],'gps_sha256':report['gps']['sha256'],'frame_count':len(rows),'skipped':skipped,'warnings':report['warnings']}
-        (tmp/'manifest.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
-        (tmp/'qa_report.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
+        write_points(tmp, features)
+        write_json(tmp / "route.geojson", route)
+        manifest = {
+            "schema_version": "2.0-draft", "sampling": sampling, "rotation": rotation,
+            "manual_points_added": sum(row["manual"] for row in rows),
+            "corrected_points": sum("original_coordinates" in feature["properties"] for feature in features),
+            "interval": interval, "max_accuracy": max_accuracy, "max_snap_seconds": max_snap,
+            **recording, "frame_count": len(rows), "skipped": skipped, "warnings": report["warnings"],
+        }
+        write_json(tmp / "manifest.json", manifest)
+        write_json(tmp / "qa_report.json", manifest)
         if package:
-            with zipfile.ZipFile(tmp/'survey.zip','w',compression=zipfile.ZIP_DEFLATED) as z:
-                for f in sorted(tmp.rglob('*')):
-                    if f.is_file() and f.name != 'survey.zip': z.write(f,f.relative_to(tmp).as_posix())
+            package_run(tmp)
         checkpoint(99)
         os.rename(tmp,output)
         return manifest

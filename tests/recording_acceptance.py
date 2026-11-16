@@ -104,7 +104,8 @@ def main():
             expect(published.locator(".leaflet-overlay-pane path")).to_have_count(2)
             expect(published.locator("#caption")).to_contain_text("of 14")
 
-            page.get_by_role("button", name="Version 2.0.0-alpha.3").click()
+            version = json.loads(request("/api/v2/version"))["version"]
+            page.get_by_role("button", name=f"Version {version}").click()
             dialog = page.get_by_role("dialog", name="About StreetView")
             expect(dialog).to_be_visible()
             expect(dialog.get_by_role("link", name="Mark Urupa")).to_have_attribute(

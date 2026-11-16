@@ -19,7 +19,7 @@ figure { margin:0; min-width:0; }
 figure img { display:block; width:100%; height:285px; object-fit:contain; background:#14252a; }
 figcaption,nav { margin:.75rem 0; }
 nav a { display:inline-block; margin:0 1rem .35rem 0; }
-#delete { display:block; margin-top:1rem; color:#86241e; }
+#delete { color:#86241e; margin-left:auto; }
 .photo-marker { display:grid; place-items:center; }
 .point-marker span { width:10px; height:10px; border-radius:50%; border:1px solid #9f181b; }
 .arrow-marker span { width:24px; height:24px; clip-path:polygon(50% 6%, 89% 65%, 57% 54%, 57% 94%, 43% 94%, 43% 54%, 11% 65%); }
@@ -40,3 +40,25 @@ dialog::backdrop { background: rgb(12 32 36 / 55%); }
 .about-heading p { margin: 0; color: #465d65; }
 .about-heading form { margin: 0; }
 .viewer.route-only { grid-template-columns: 1fr; }
+
+button, .button-link { white-space: nowrap; }
+.button-link { display: inline-block; padding: .48rem .65rem; border: 1px solid #8c9fa5; border-radius: 5px; background: #e6eff0; color: inherit; text-decoration: none; }
+.button-link:hover { background: #d5e5e8; }
+.validation-actions, .processing-actions, .processing-progress, .validation-busy { display: flex; align-items: center; flex-wrap: wrap; gap: .55rem; }
+.validation-busy { color: #465d65; }
+#validation:empty { display:none; }
+#job { margin: .6rem 0; color: #465d65; }
+.processing-progress progress { width: 9rem; accent-color: #287691; }
+#job-percent { min-width: 3ch; }
+.spinner { width: 1rem; height: 1rem; border: 2px solid #bcd3d9; border-top-color: #287691; border-radius: 50%; animation: search-spin .8s linear infinite; }
+@keyframes search-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+.map-help { color: #465d65; margin: .65rem 0; }
+.point-popup dl { display: grid; grid-template-columns: auto 1fr; gap: .15rem .6rem; margin: .5rem 0; }
+.point-popup dt { font-weight: 600; }
+.point-popup dd { margin: 0; }
+.point-popup form { display: grid; gap: .35rem; margin: .5rem 0 0; }
+.point-popup form p { margin: 0; }
+.point-popup input { width: 100%; }
+.point-popup button { font-size: .86rem; padding: .35rem .5rem; }
+.edit-handle { display: grid; place-items: center; color: white; background: #175c6c; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 0 1px #175c6c; font-weight: bold; font-size: 19px; }

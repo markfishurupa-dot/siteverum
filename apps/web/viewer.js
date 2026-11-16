@@ -1,7 +1,8 @@
 "use strict";
 
 class SurveyViewer {
-  constructor(onMapClick = () => {}) {
+  constructor(options = {}) {
+    this.options = options;
     this.map = L.map("map", {maxZoom: 21}).setView([0, 0], 2);
     this.route = L.layerGroup().addTo(this.map);
     this.markers = L.layerGroup().addTo(this.map);
@@ -13,7 +14,7 @@ class SurveyViewer {
     L.control.layers({"Survey only": L.layerGroup().addTo(this.map), "OpenStreetMap": osm}, {}, {collapsed: false}).addTo(this.map);
     this.points = [];
     this.map.on("zoomend moveend", () => this.drawMarkers());
-    this.map.on("click", event => onMapClick(event.latlng));
+
     document.getElementById("previous").onclick = () => this.showPhoto(this.index - 1, true);
     document.getElementById("next").onclick = () => this.showPhoto(this.index + 1, true);
     document.addEventListener("keydown", event => {
@@ -24,7 +25,9 @@ class SurveyViewer {
     });
   }
 
-  load(points, route, file) {
+  load(points, route, file, preserveView = false) {
+    this.map.closePopup();
+    const previousIndex = this.index;
     this.points = points.features;
     this.file = file;
     this.route.clearLayers();
@@ -36,8 +39,9 @@ class SurveyViewer {
       return;
     }
     const locations = this.points.map(feature => this.location(feature));
-    this.map.fitBounds(L.latLngBounds(locations), {padding: [25, 25], maxZoom: 19});
-    this.showPhoto(0, false);
+    if (!preserveView)
+      this.map.fitBounds(L.latLngBounds(locations), {padding: [25, 25], maxZoom: 19});
+    this.showPhoto(preserveView ? Math.min(previousIndex ?? 0, this.points.length - 1) : 0, false);
   }
 
   location(feature) {
@@ -63,13 +67,17 @@ class SurveyViewer {
         iconSize: directional ? [28, 28] : [18, 18]
       });
       L.marker(location, {icon, title: "Photo " + (i + 1), keyboard: true, bubblingMouseEvents: false})
-        .addTo(this.markers).on("click", () => this.showPhoto(i, false));
+        .addTo(this.markers).on("click", () => {
+          this.showPhoto(i, false);
+          this.openDetails(i);
+        });
     });
   }
 
   showPhoto(index, pan) {
     const feature = this.points[index];
     if (!feature) return;
+    if (index !== this.index) this.map.closePopup();
     this.index = index;
     const properties = feature.properties;
     const url = this.file(properties.image_path);
@@ -84,4 +92,120 @@ class SurveyViewer {
     if (pan) this.map.panTo(this.location(feature));
     this.drawMarkers();
   }
+
+  openDetails(index) {
+    this.map.closePopup();
+    const feature = this.points[index];
+    const properties = feature.properties;
+    const [longitude, latitude] = feature.geometry.coordinates;
+    const box = document.createElement("div");
+    box.className = "point-popup";
+    const heading = document.createElement("strong");
+    heading.textContent = "Photo " + (index + 1);
+    const fields = document.createElement("dl");
+    const values = {};
+    const addField = (label, value) => {
+      const term = document.createElement("dt");
+      term.textContent = label;
+      const detail = document.createElement("dd");
+      detail.textContent = value;
+      fields.append(term, detail);
+      values[label] = detail;
+    };
+    const measurement = (value, unit) => value == null || value === "" ? "Unavailable" : Number(value).toFixed(2) + " " + unit;
+    addField("Latitude", latitude.toFixed(7));
+    addField("Longitude", longitude.toFixed(7));
+    addField("Altitude", measurement(properties.alt_m, "m"));
+    addField("Speed", measurement(properties.speed_mps, "m/s"));
+    addField("Bearing", measurement(properties.bearing, "deg"));
+    addField("GPS accuracy", measurement(properties.accuracy_m, "m"));
+    if (properties.original_coordinates) {
+      const [originalLon, originalLat] = properties.original_coordinates;
+      addField("Original GPS", originalLat.toFixed(7) + ", " + originalLon.toFixed(7));
+    }
+    box.append(heading, fields);
+    const popup = L.popup({maxWidth: 285, closeOnClick: false})
+      .setLatLng(this.location(feature)).setContent(box).openOn(this.map);
+
+    if (this.options.telemetry && !Object.hasOwn(properties, "speed_mps")) {
+      this.options.telemetry(properties.frame_index).then(telemetry => {
+        values.Altitude.textContent = measurement(telemetry.alt_m, "m");
+        values.Speed.textContent = measurement(telemetry.speed_mps, "m/s");
+        popup.update();
+      }).catch(() => {});
+    }
+    if (this.options.saveEdit && this.options.canEdit()) {
+      const edit = document.createElement("button");
+      edit.textContent = "Edit";
+      edit.onclick = () => {
+        edit.remove();
+        this.editCoordinates(popup, box, feature);
+      };
+      box.append(edit);
+      popup.update();
+    }
+  }
+
+  editCoordinates(popup, box, feature) {
+    box.querySelector("dl").hidden = true;
+    popup.options.offset = L.point(0, -24);
+    const form = document.createElement("form");
+    form.className = "point-editor";
+    const field = (text, value, limit) => {
+      const label = document.createElement("label");
+      label.textContent = text;
+      const input = document.createElement("input");
+      Object.assign(input, {type: "number", step: "any", min: -limit, max: limit, required: true, value});
+      label.append(input);
+      form.append(label);
+      return input;
+    };
+    const [longitude, latitude] = feature.geometry.coordinates;
+    const address = document.createElement("p");
+    address.textContent = "Drag the handle or enter new coordinates.";
+    form.append(address);
+    const lat = field("New latitude", latitude, 90);
+    const lon = field("New longitude", longitude, 180);
+    const save = document.createElement("button");
+    save.textContent = "Save position";
+    const status = document.createElement("p");
+    status.setAttribute("role", "status");
+    form.append(save, status);
+    box.append(form);
+    L.DomEvent.disableClickPropagation(form);
+
+    const handle = L.marker(this.location(feature), {
+      draggable: true, autoPan: true, zIndexOffset: 1000,
+      icon: L.divIcon({className: "edit-handle", iconSize: [30, 30], iconAnchor: [15, 15],
+        html: '<span aria-hidden="true">+</span>'}),
+      title: "Drag to correct the photo position"
+    }).addTo(this.map);
+    handle.on("drag", () => {
+      const position = handle.getLatLng().wrap();
+      lat.value = position.lat.toFixed(7);
+      lon.value = position.lng.toFixed(7);
+    });
+    handle.on("dragend", () => popup.setLatLng(handle.getLatLng()));
+    popup.once("remove", () => handle.remove());
+    for (const input of [lat, lon]) input.onchange = () => {
+      if (!lat.checkValidity() || !lon.checkValidity()) return;
+      const position = L.latLng(Number(lat.value), Number(lon.value));
+      handle.setLatLng(position);
+      popup.setLatLng(position);
+    };
+    form.onsubmit = async event => {
+      event.preventDefault();
+      save.disabled = true;
+      try {
+        await this.options.saveEdit(feature.properties.frame_index, {lat: Number(lat.value), lon: Number(lon.value)});
+        if (popup.isOpen()) this.map.closePopup(popup);
+      } catch (error) {
+        status.textContent = error.message;
+        save.disabled = false;
+      }
+    };
+    popup.update();
+    lat.focus({preventScroll: true});
+  }
+
 }

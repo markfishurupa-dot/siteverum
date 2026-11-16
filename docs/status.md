@@ -55,3 +55,11 @@ Version 2.0.0-alpha.3 lets users append a ZIP or an MP4/LOG pair to a completed 
 The Edge test appended a privately derived second MP4/LOG recording to the original ZIP survey, verified 14 readable photo references and two independent route segments, and opened the 14-point GeoPackage with GDAL. It confirmed that the previous run's image still matched, tested all three layer choices on the same published URL, and checked the About dialog and credit link. Nine earlier catalog entries created by test runs were removed. Browser tests now use temporary names and clean up their entries.
 
 Processing rebuilds the combined run from recordings using the current survey settings. Manual photo points still reference the first recording.
+
+## Validation and coordinate editing
+
+Version 2.0.0-alpha.4 uses readable English status messages, shows a spinner during validation, and exposes a ZIP containing report.csv and excluded_records.csv. During processing, the cancel control takes the place of the start control and a progress bar shows the percentage. Deletion shares the publication action row. The workspace map point popup shows coordinates, altitude, speed, bearing and accuracy when available, and supports numeric or draggable position corrections.
+
+Corrections create a new revision, reuse existing photos, and update the point geometries, corresponding route vertices and portable GIS export. Observed coordinates remain in the revision metadata. Reprocessing reapplies saved edits to matching observations. Existing processed runs can read missing telemetry from their matching GPS log. Published maps are view-only.
+
+The Docker/Edge test verified validation and the two CSV files, processing progress and cancellation, both editing methods, revised point and route exports and image bytes, correction persistence on reprocessing, and the absence of editing on the published page. The existing published survey and legacy telemetry were also checked. Eleven Python tests passed with the private sample configured, including independent route segments and exclusion record numbering.

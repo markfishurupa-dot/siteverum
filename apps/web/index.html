@@ -31,20 +31,35 @@
     <input type="file" id="files" multiple accept=".zip,.mp4,.log,.csv" required>
     <button>Upload</button> <progress id="upload-progress" max="100" hidden></progress>
   </form>
-  <p id="assets"></p><button id="validate">Validate sources</button>
-  <ul id="validation"></ul>
+  <p id="assets"></p>
+  <div class="validation-actions">
+    <button id="validate">Validate sources</button>
+    <a id="validation-report" class="button-link" download hidden>Download report</a>
+    <span id="validation-busy" class="validation-busy" role="status" hidden>
+      <span class="spinner" aria-hidden="true"></span> Validating GPS data and decoding video
+    </span>
+  </div>
+  <ul id="validation" aria-live="polite"></ul>
   <form id="process">
     <label>Sampling <select id="sampling"><option value="gps_fix">GPS fixes</option><option value="time">Time (seconds)</option><option value="distance">Distance (metres)</option></select></label>
     <label>Interval <input id="interval" type="number" min=".1" max="10000" step="any" value="1"></label>
     <label>Maximum GPS accuracy (m) <input id="accuracy" type="number" min=".1" max="10000" step="any" placeholder="Optional"></label>
     <label>Rotate exported photos <select id="rotation">
-      <option value="0">No rotation</option><option value="90">90° clockwise</option>
-      <option value="180">180°</option><option value="270">90° counterclockwise</option>
+      <option value="0">No rotation</option><option value="90">90-degree clockwise</option>
+      <option value="180">180-degree</option><option value="270">90-degree counterclockwise</option>
     </select></label>
-    <button id="start" disabled>Process survey</button>
+    <div class="processing-actions">
+      <button id="start" disabled>Process survey</button>
+      <button id="cancel" type="button" hidden>Cancel processing</button>
+      <div id="processing-progress" class="processing-progress" hidden>
+        <progress id="job-progress" value="0" max="100" aria-label="Processing progress"></progress>
+        <span id="job-percent"></span>
+      </div>
+    </div>
   </form>
-  <p id="job" aria-live="polite"></p><button id="cancel" hidden>Cancel processing</button>
+  <p id="job" role="status" hidden></p>
   <div id="results" hidden>
+    <p class="map-help">Select a photo point to view GPS details or edit its position.</p>
     <div class="viewer">
       <div id="map" aria-label="Survey map"></div>
       <figure><img id="photo" alt="Survey photograph"><figcaption id="caption"></figcaption>
@@ -52,29 +67,18 @@
       </figure>
     </div>
     <nav id="downloads" aria-label="Survey downloads"></nav>
-    <div class="publication-controls">
-      <label>Published map layers <select id="publish-layers">
-        <option value="both">Route and photo points</option>
-        <option value="route">Route only</option>
-        <option value="points">Photo points only</option>
-      </select></label>
-      <button id="publication"></button>
-      <button id="save-publication" hidden>Update published map</button>
-      <a id="published-link" hidden>Open published map</a>
-    </div>
-    <details>
-      <summary>Add a photo point</summary>
-      <p>Click the map to place the point, then enter its time in the first recording.</p>
-      <form id="add-point">
-        <label>Latitude <input id="point-lat" type="number" min="-90" max="90" step="any" required></label>
-        <label>Longitude <input id="point-lon" type="number" min="-180" max="180" step="any" required></label>
-        <label>Video time (seconds) <input id="point-time" type="number" min="0" max="7200" step=".001" required></label>
-        <label>Camera bearing (optional) <input id="point-bearing" type="number" min="0" max="359.999" step="any"></label>
-        <button id="add-point-button">Add point and process</button>
-      </form>
-    </details>
   </div>
-  <button id="delete">Delete survey</button>
+  <div class="publication-controls">
+    <label id="layers-control" hidden>Published map layers <select id="publish-layers">
+      <option value="both">Route and photo points</option>
+      <option value="route">Route only</option>
+      <option value="points">Photo points only</option>
+    </select></label>
+    <button id="publication" hidden></button>
+    <button id="save-publication" hidden>Update published map</button>
+    <a id="published-link" hidden>Open published map</a>
+    <button id="delete">Delete survey</button>
+  </div>
 </div>
 </section>
 </main>

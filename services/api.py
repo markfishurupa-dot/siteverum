@@ -1,3 +1,4 @@
+import csv
 import hashlib
 import hmac
 import json
@@ -10,7 +11,7 @@ from typing import Literal
 from uuid import UUID, uuid4
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from psycopg.types.json import Jsonb
@@ -19,6 +20,7 @@ from pydantic import BaseModel, Field
 from processor import preflight
 from runtime import ROOT, connect, migrate, run_path, source_groups
 from version import VERSION
+from validation_report import original_track, report_zip
 
 WEB = Path(__file__).resolve().parents[1] / "apps/web"
 LIMITS = {"video": 1024**3, "track": 16 * 1024**2, "zip": 1024**3}
@@ -125,7 +127,7 @@ def detail(survey: UUID):
             for recording, items in source_groups(db, survey).items() for item in items.values()
         ]
         row["jobs"] = db.execute(
-            "SELECT id,state,progress,error,metadata,settings FROM jobs WHERE survey=%s ORDER BY created DESC", (survey,)
+            "SELECT id,state,progress,error,metadata,settings,coordinate_edit IS NOT NULL AS is_edit FROM jobs WHERE survey=%s ORDER BY created DESC", (survey,)
         ).fetchall()
         return row
 
@@ -213,8 +215,12 @@ def source_paths(rows):
     return {kind: ROOT / row["storage"] for kind, row in rows.items()}
 
 
+class ValidationSettings(BaseModel):
+    max_accuracy: float | None = Field(default=None, gt=0, le=10000)
+
+
 @app.post("/api/v2/surveys/{survey}/validate", dependencies=[Depends(authenticate)])
-def validate(survey: UUID):
+def validate(survey: UUID, settings: ValidationSettings | None = None):
     with connect() as db:
         survey_row(db, survey, True)
         idle(db, survey)
@@ -240,8 +246,29 @@ def validate(survey: UUID):
                 **{field: [f"Recording {i}: {m}" for i, r in enumerate(reports.values(), 1) for m in r[field]]
                    for field in ("errors", "warnings")},
             }
+        report["accuracy_limit"] = settings.max_accuracy if settings else None
         db.execute("UPDATE surveys SET validation=%s WHERE id=%s", (Jsonb(report), survey))
         return report
+
+
+@app.get("/api/v2/surveys/{survey}/validation-report", dependencies=[Depends(authenticate)])
+def download_validation(survey: UUID):
+    with connect() as db:
+        row = survey_row(db, survey, True)
+        if not row["validation"]:
+            raise HTTPException(404, "Validate sources to download a report")
+        groups = source_groups(db, survey)
+        validation = row["validation"]
+    stream = report_zip(validation, groups)
+
+    def chunks():
+        with stream:
+            yield from iter(lambda: stream.read(65536), b"")
+
+    return StreamingResponse(chunks(), media_type="application/zip", headers={
+        "Content-Disposition": 'attachment; filename="validation-report.zip"',
+        "Cache-Control": "private, no-store",
+    })
 
 
 @app.post("/api/v2/surveys/{survey}/process", status_code=202, dependencies=[Depends(authenticate)])
@@ -263,7 +290,11 @@ def enqueue(survey: UUID, settings: Settings):
             config.pop("rotation")
         if not config["manual_points"]:
             config.pop("manual_points")
-        fingerprint = hashlib.sha256(json.dumps([rows, config], sort_keys=True).encode()).hexdigest()
+        corrections = db.execute(
+            "SELECT identity,longitude,latitude FROM point_corrections WHERE survey=%s ORDER BY identity", (survey,),
+        ).fetchall()
+        fingerprint_data = [rows, config, corrections] if corrections else [rows, config]
+        fingerprint = hashlib.sha256(json.dumps(fingerprint_data, sort_keys=True).encode()).hexdigest()
         existing = db.execute(
             """SELECT id,state FROM jobs WHERE survey=%s AND fingerprint=%s
             AND state IN ('queued','running','completed') ORDER BY created DESC LIMIT 1""",
@@ -282,6 +313,68 @@ def enqueue(survey: UUID, settings: Settings):
             (job, survey, fingerprint, Jsonb(config)),
         )
         return {"id": job, "state": "queued"}
+
+
+class PointCoordinates(BaseModel):
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+
+
+@app.get("/api/v2/surveys/{survey}/runs/{job}/points/{sequence}", dependencies=[Depends(authenticate)])
+def point_telemetry(survey: UUID, job: UUID, sequence: int):
+    with connect() as db:
+        survey_row(db, survey)
+        row = db.execute(
+            """SELECT f.properties, j.metadata FROM frames f JOIN jobs j ON j.id=f.job
+            WHERE j.survey=%s AND j.id=%s AND j.state='completed' AND f.sequence=%s""",
+            (survey, job, sequence),
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, "Photo point not found")
+        groups = source_groups(db, survey)
+    properties = row["properties"]
+    if "speed_mps" in properties or properties.get("manual") or properties.get("interpolated"):
+        return properties
+    # Older runs did not export speed or altitude. Join only to the matching source checksum
+    # and exact GPS timestamp. If the original fix is unavailable, keep those values blank.
+    metadata = row["metadata"]
+    recordings = metadata.get("recordings")
+    recording = recordings[properties.get("recording_number", 1) - 1] if recordings else metadata
+    checksum = recording.get("gps_sha256")
+    sources = groups.get(recording.get("recording", "primary"))
+    if checksum and sources:
+        with original_track(sources, checksum) as track:
+            if track is not None:
+                with track.open(encoding="utf-8-sig", newline="") as stream:
+                    for fix in csv.DictReader(stream):
+                        if fix.get("video_elapsed_ms") == str(properties["requested_ms"]):
+                            properties.update(speed_mps=fix.get("speed_mps"), alt_m=fix.get("alt_m"))
+                            break
+    return properties
+
+
+@app.patch("/api/v2/surveys/{survey}/runs/{job}/points/{sequence}", status_code=202,
+           dependencies=[Depends(authenticate)])
+def move_point(survey: UUID, job: UUID, sequence: int, coordinates: PointCoordinates):
+    with connect() as db:
+        survey_row(db, survey, True)
+        idle(db, survey)
+        latest = db.execute(
+            "SELECT id,settings FROM jobs WHERE survey=%s AND state='completed' ORDER BY created DESC LIMIT 1",
+            (survey,),
+        ).fetchone()
+        if not latest or latest["id"] != job:
+            raise HTTPException(409, "Reload the survey to edit its latest completed run")
+        if not db.execute("SELECT 1 FROM frames WHERE job=%s AND sequence=%s", (job, sequence)).fetchone():
+            raise HTTPException(404, "Photo point not found")
+        revision = uuid4()
+        edit = {"parent": str(job), "sequence": sequence, **coordinates.model_dump()}
+        db.execute(
+            """INSERT INTO jobs (id,survey,fingerprint,state,settings,coordinate_edit)
+            VALUES (%s,%s,%s,'queued',%s,%s)""",
+            (revision, survey, f"coordinate-edit:{revision}", Jsonb(latest["settings"]), Jsonb(edit)),
+        )
+        return {"id": revision, "state": "queued"}
 
 
 @app.post("/api/v2/jobs/{job}/cancel", dependencies=[Depends(authenticate)])

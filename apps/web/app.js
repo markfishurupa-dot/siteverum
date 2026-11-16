@@ -1,6 +1,8 @@
 "use strict";
 const $ = id => document.getElementById(id);
 let survey, current, shownRun, viewer, selectedRecording = "primary";
+let validationPending;
+const accuracy = () => $("accuracy").value === "" ? null : Number($("accuracy").value);
 const root = "/api/v2";
 const base = () => root + "/surveys/" + survey;
 
@@ -20,11 +22,33 @@ function action(fn) {
     catch (error) { $("message").textContent = error.message; }
   };
 }
+function validationMessage(message) {
+  const labels = {
+    GPS_LOW_ACCURACY: "Low GPS accuracy",
+    GPS_POSITION_JUMP: "Possible GPS jump",
+    CLOCK_OFFSET_WARNING: "Possible clock mismatch",
+    TRACK_ENDS_EARLY: "GPS track ends early",
+    TRACK_BEYOND_VIDEO_DURATION: "GPS track runs beyond the video",
+    LOG_ELAPSED_NOT_STRICTLY_INCREASING: "GPS timestamps must be in increasing order",
+    NON_ANDROID_FILENAME: "Nonstandard filename",
+    ZIP_VIDEO_LOG_STEMS_DIFFER: "The video and GPS log in the ZIP must have matching names",
+    VIDEO_LOG_STEMS_DIFFER: "The video and GPS log must have matching names",
+    PAIR_INCOMPLETE: "Recording incomplete",
+    PAIR_AMBIGUOUS: "Recording is ambiguous"
+  };
+  const prefix = message.match(/^Recording [0-9]+: /)?.[0] || "";
+  const text = message.slice(prefix.length);
+  const match = text.match(/^([A-Z][A-Z0-9_]+)(?::\s*(.*))?$/);
+  if (!match) return message;
+  const words = match[1].toLowerCase().replaceAll("_", " ");
+  const label = labels[match[1]] || words[0].toUpperCase() + words.slice(1);
+  return prefix + label + (match[2] ? ": " + match[2] : "");
+}
 async function catalog() {
   const items = await api(root + "/surveys");
   $("catalog").replaceChildren(...items.map(item => {
     const li = document.createElement("li"), button = document.createElement("button");
-    button.textContent = item.label + (item.published ? " В· Published locally" : "");
+    button.textContent = item.label + (item.published ? " | Published locally" : "");
     button.setAttribute("aria-current", item.id === survey);
     button.onclick = action(async () => select(item.id));
     li.append(button);
@@ -35,6 +59,11 @@ async function select(id) {
   survey = id;
   shownRun = null;
   selectedRecording = "primary";
+  if (viewer) viewer.map.closePopup();
+  $("sampling").value = "gps_fix";
+  $("interval").value = 1;
+  $("accuracy").value = "";
+  $("rotation").value = 0;
   $("survey").hidden = false;
   $("results").hidden = true;
   $("files").value = "";
@@ -77,7 +106,7 @@ async function refresh() {
     ...(validation?.can_process ? ["Validated"] : []),
     ...(validation?.errors || []), ...(validation?.warnings || [])
   ].map(message => {
-    const li = document.createElement("li"); li.textContent = message; return li;
+    const li = document.createElement("li"); li.textContent = validationMessage(message); return li;
   }));
   const latest = row.jobs[0];
   const active = latest && ["queued","running"].includes(latest.state);
@@ -88,19 +117,34 @@ async function refresh() {
   $("add-recording").disabled = !!active || !recordings.has(selectedRecording);
   $("discard-recording").hidden = selectedRecording === "primary" || !!included;
   $("discard-recording").disabled = !!active;
-  $("start").disabled = !validation?.can_process || !!active;
-  $("job").textContent = latest ? [latest.state, latest.progress + "%", latest.error].filter(Boolean).join(" В· ") : "";
+  const stateLabels = {
+    queued: latest?.is_edit ? "Coordinate correction queued" : "Processing queued",
+    running: latest?.is_edit ? "Saving coordinate correction" : "Processing survey",
+    completed: latest?.is_edit ? "Coordinate correction saved" : "Processing complete",
+    failed: latest?.is_edit ? "Coordinate correction failed" : "Processing failed",
+    cancelled: "Processing cancelled"
+  };
+  $("start").hidden = !!active;
+  $("start").disabled = !validation?.can_process || validationPending === requested;
   $("cancel").hidden = !active;
+  $("processing-progress").hidden = !active;
+  $("job-progress").value = latest?.progress || 0;
+  $("job-percent").textContent = (latest?.progress || 0) + "%";
+  $("job").hidden = !latest;
+  $("job").textContent = latest ? [stateLabels[latest.state], latest.error].filter(Boolean).join(": ") : "";
+  $("delete").disabled = !!active;
+  $("layers-control").hidden = !ready;
+  $("publication").hidden = !ready;
   $("published-link").hidden = !row.published;
   $("published-link").href = "/" + encodeURIComponent(row.slug);
-  $("add-point-button").disabled = !!active || !validation?.can_process;
   $("save-publication").hidden = !row.published;
   if ($("publish-layers").dataset.survey !== requested) {
     $("publish-layers").value = row.map_layers;
     $("publish-layers").dataset.survey = requested;
   }
   $("publication").textContent = row.published ? "Unpublish locally" : "Publish locally";
-  if (ready && ready.id !== shownRun) await showRun(ready.id, requested);
+  if (ready && ready.id !== shownRun) await showRun(ready.id, requested, ready.is_edit);
+  updateValidationActions();
 }
 function upload(file, target, recording) {
   return new Promise((resolve, reject) => {
@@ -143,15 +187,37 @@ $("discard-recording").onclick = action(async () => {
   selectedRecording = "primary";
   await refresh();
 });
+function updateValidationActions() {
+  const busy = validationPending === survey;
+  const ready = current?.validation?.can_process;
+  const sameAccuracy = (current?.validation?.accuracy_limit ?? null) === accuracy();
+  $("validate").hidden = !!ready && sameAccuracy && !busy;
+  const active = current?.jobs.some(job => ["queued", "running"].includes(job.state));
+  $("validate").disabled = busy || !current?.sources.length || active;
+  for (const id of ["sampling", "interval", "accuracy", "rotation"]) $(id).disabled = busy || !!active;
+  $("validate").textContent = ready ? "Refresh validation" : "Validate sources";
+  $("validation-report").hidden = busy || !current?.validation;
+  $("validation-report").href = base() + "/validation-report";
+  $("validation-busy").hidden = !busy;
+  $("start").disabled = busy || !ready;
+}
+$("accuracy").oninput = updateValidationActions;
 $("validate").onclick = action(async () => {
-  $("message").textContent = "Validating and decoding videoвЂ¦";
-  await api(base() + "/validate", "POST");
-  await refresh();
+  if (!$("process").reportValidity()) return;
+  const target = survey;
+  validationPending = target;
+  updateValidationActions();
+  try {
+    await api(base() + "/validate", "POST", {max_accuracy: accuracy()});
+  } finally {
+    if (validationPending === target) validationPending = null;
+    if (survey === target) await refresh();
+  }
 });
 $("process").onsubmit = action(async () => {
   await api(base() + "/process","POST", {
     sampling:$("sampling").value, interval:Number($("interval").value),
-    max_accuracy:$("accuracy").value === "" ? null : Number($("accuracy").value),
+    max_accuracy:accuracy(),
     rotation: Number($("rotation").value),
     manual_points: current.jobs.find(job => job.state === "completed")?.settings.manual_points || []
   });
@@ -183,19 +249,24 @@ action(async () => {
   $("about-version").textContent = "Private alpha | " + info.version;
 })();
 const artifact = (job, name) => base() + "/runs/" + job + "/" + name;
-async function showRun(job, requested) {
+async function showRun(job, requested, isEdit) {
   const [data, route] = await Promise.all([api(artifact(job,"points.geojson")), api(artifact(job,"route.geojson"))]);
   if (requested !== survey) return;
+  const firstView = !shownRun;
   shownRun = job;
   $("results").hidden = false;
-  if (!viewer) viewer = new SurveyViewer(location => {
-    if (!$("add-point").closest("details").open) return;
-    $("point-lat").value = location.lat.toFixed(7);
-    $("point-lon").value = L.Util.wrapNum(location.lng, [-180, 180], true).toFixed(7);
+  if (!viewer) viewer = new SurveyViewer({
+    telemetry: sequence => api(artifact(shownRun, "points/" + sequence)),
+    canEdit: () => !current.jobs.some(job => ["queued", "running"].includes(job.state)),
+    saveEdit: async (sequence, coordinates) => {
+      await api(artifact(shownRun, "points/" + sequence), "PATCH", coordinates);
+      await refresh();
+    }
   });
-  viewer.load(data, route, name => artifact(job, name));
+  viewer.load(data, route, name => artifact(job, name), isEdit && viewer.survey === requested);
+  viewer.survey = requested;
   const settings = current.jobs.find(item => item.id === job)?.settings;
-  if (settings) {
+  if (settings && firstView) {
     $("sampling").value = settings.sampling;
     $("interval").value = settings.interval;
     $("accuracy").value = settings.max_accuracy ?? "";
@@ -205,20 +276,6 @@ async function showRun(job, requested) {
     const a = document.createElement("a"); a.textContent = name; a.href = artifact(job,name); a.download = name; return a;
   }));
 }
-$("add-point").onsubmit = action(async () => {
-  const settings = current.jobs.find(job => job.id === shownRun).settings;
-  const point = {
-    lat: Number($("point-lat").value),
-    lon: Number($("point-lon").value),
-    video_elapsed_ms: Math.round(Number($("point-time").value) * 1000),
-    bearing: $("point-bearing").value === "" ? null : Number($("point-bearing").value)
-  };
-  await api(base() + "/process", "POST", {
-    ...settings, manual_points: [...(settings.manual_points || []), point]
-  });
-  $("add-point").reset();
-  await refresh();
-});
 setInterval(() => {
   if (current?.jobs.some(job => ["queued","running"].includes(job.state))) action(refresh)();
 },1500);

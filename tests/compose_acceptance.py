@@ -81,7 +81,7 @@ def browser_import(page, label, files, target, loose=False):
     page.get_by_role("button", name="Upload", exact=True).click()
     expect(page.locator("#message")).to_have_text("Sources staged", timeout=30000)
     page.get_by_role("button", name="Validate sources").click()
-    expect(page.locator("#validation")).to_contain_text("GPS_LOW_ACCURACY", timeout=30000)
+    expect(page.locator("#validation")).to_contain_text("Low GPS accuracy", timeout=30000)
     page.get_by_role("button", name="Process survey").click()
     expect(page.locator("#caption")).to_contain_text("Photo 1 of 7", timeout=120000)
     expect(page.locator(".leaflet-marker-icon")).to_have_count(7)

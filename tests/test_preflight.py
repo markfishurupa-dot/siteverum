@@ -20,6 +20,25 @@ class PreflightTests(unittest.TestCase):
             self.assertEqual(errors, [])
             self.assertEqual(report["pre_recording_rows"], 1)
 
+    def test_reports_exclusions_with_original_record_numbers(self):
+        with tempfile.TemporaryDirectory() as folder:
+            track = Path(folder) / "observations.log"
+            track.write_text(
+                "timestamp_utc,video_elapsed_ms,recording_start_utc_ms,lat,lon,accuracy_m\n"
+                "1000,-1,-1,1,2,4\n1500,500,1000,1,2,4\n"
+                "2000,1000,1000,1,2,40\n2100,1100,1000,1\n"
+            )
+            rejected = []
+            errors = []
+            p.validate_log(track, [], errors, 20, accuracy_limit=30,
+                           exclude=lambda index, reason, _: rejected.append((index, reason)))
+            self.assertEqual(rejected, [
+                (1, "Before recording start"),
+                (3, "Exceeds configured accuracy limit"),
+                (4, "Invalid GPS record: wrong CSV field count or blank required value"),
+            ])
+            self.assertTrue(errors[0].startswith("LOG_BAD_ROW_5:"))
+
     def test_extreme_timestamp_is_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             f = Path(d) / "sample.log"

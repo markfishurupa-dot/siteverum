@@ -1,5 +1,4 @@
 """Run against the local Compose stack with the private Android fixture configured."""
-import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from uuid import uuid4
@@ -47,22 +46,6 @@ def run_acceptance(label):
         page.get_by_role("button", name="Process survey").click()
         expect(page.locator("#photo")).to_have_js_property("naturalWidth", sizes[1], timeout=120000)
         expect(page.locator("#photo")).to_have_js_property("naturalHeight", sizes[0])
-        photo = page.locator("#photo").get_attribute("src")
-        geojson = json.loads(request(photo.split("/images/")[0] + "/points.geojson"))
-        longitude, latitude = geojson["features"][0]["geometry"]["coordinates"]
-        page.get_by_text("Add a photo point", exact=True).click()
-        page.locator("#point-lat").fill(str(latitude))
-        page.locator("#point-lon").fill(str(longitude))
-        page.locator("#point-time").fill("2")
-        page.get_by_role("button", name="Add point and process").click()
-        expect(page.locator("#caption")).to_contain_text("of 8", timeout=120000)
-        photo = page.locator("#photo").get_attribute("src")
-        prefix = photo.split("/images/")[0]
-        data = json.loads(request(prefix + "/points.geojson"))
-        manual = [feature for feature in data["features"] if feature["properties"]["manual"]]
-        assert len(manual) == 1 and manual[0]["properties"]["requested_ms"] == 2000
-        assert request(prefix + "/" + manual[0]["properties"]["image_path"]).startswith(b"\xff\xd8")
-
         page.get_by_role("button", name="Publish locally", exact=True).click()
         link = page.get_by_role("link", name="Open published map")
         expect(link).to_be_visible()
@@ -70,14 +53,14 @@ def run_acceptance(label):
         published = page.context.new_page()
         published.goto(base + url)
         expect(published.locator("#title")).to_have_text(label)
-        expect(published.locator("#caption")).to_contain_text("Photo 1 of 8")
+        expect(published.locator("#caption")).to_contain_text("Photo 1 of 7")
         expect(published.locator("#add-point")).to_have_count(0)
         request(url, auth=False, expected=401)
         page.get_by_role("button", name="Unpublish locally", exact=True).click()
         expect(link).to_be_hidden()
         request(url, expected=404)
         request(published.locator("#photo").get_attribute("src"), expected=404)
-    print("Rotation, manual photo point, basemap switch, zoom markers, viewport culling and local publication passed.")
+    print("Rotation, basemap switch, zoom markers, viewport culling and local publication passed.")
 
 
 if __name__ == "__main__":

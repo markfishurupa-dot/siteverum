@@ -51,7 +51,8 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * 6371008.8 * math.asin(min(1.0, math.sqrt(s)))
 
 
-def validate_log(path: Path, warnings: list[str], errors: list[str], max_accuracy_m: float) -> dict:
+def validate_log(path: Path, warnings: list[str], errors: list[str], max_accuracy_m: float, *,
+                 exclude=None, accuracy_limit=None, video_duration=None) -> dict:
     result = {"file": path.name, "size_bytes": path.stat().st_size, "sha256": hash_file(path)}
     if result["size_bytes"] > MAX_TRACK_BYTES:
         errors.append("TRACK_UPLOAD_LIMIT")
@@ -70,12 +71,14 @@ def validate_log(path: Path, warnings: list[str], errors: list[str], max_accurac
                 errors.append("LOG_DUPLICATE_COLUMNS")
                 return result
             parsed = []
-            for n, rec in enumerate(reader, start=2):
+            previous_elapsed = -1
+            for record_number, rec in enumerate(reader, start=1):
+                n = record_number + 1
                 if n > 100002:
                     errors.append("TRACK_ROW_LIMIT")
                     return result
                 try:
-                    if None in rec or any(not rec.get(k, "").strip() for k in CORE_FIELDS):
+                    if None in rec or any(not (rec.get(k) or "").strip() for k in CORE_FIELDS):
                         raise ValueError("wrong CSV field count or blank required value")
                     row = {
                         "timestamp_utc": int(rec["timestamp_utc"]),
@@ -100,9 +103,30 @@ def validate_log(path: Path, warnings: list[str], errors: list[str], max_accurac
                         raise ValueError("negative speed")
                     if row.get("bearing") is not None and not (0 <= row["bearing"] <= 360):
                         raise ValueError("bearing out of range")
+                    if exclude is not None:
+                        reasons = []
+                        elapsed = row["video_elapsed_ms"]
+                        accuracy = row.get("accuracy_m")
+                        if elapsed < 0:
+                            reasons.append("Before recording start")
+                        elif video_duration is not None and elapsed > (video_duration + 0.2) * 1000:
+                            reasons.append("Beyond video duration")
+                        if elapsed >= 0 and elapsed <= previous_elapsed:
+                            reasons.append("GPS timestamps out of order or duplicated")
+                        if elapsed >= 0:
+                            previous_elapsed = elapsed
+                        if accuracy_limit is not None and elapsed >= 0:
+                            if accuracy is None:
+                                reasons.append("Missing accuracy")
+                            elif accuracy > accuracy_limit:
+                                reasons.append("Exceeds configured accuracy limit")
+                        if reasons:
+                            exclude(record_number, "; ".join(reasons), rec)
                     parsed.append(row)
                 except (ValueError, TypeError, OverflowError) as e:
                     errors.append(f"LOG_BAD_ROW_{n}: {e}")
+                    if exclude is not None:
+                        exclude(record_number, f"Invalid GPS record: {e}", rec)
             result["row_count"] = len(parsed)
     except (UnicodeError, csv.Error, OSError) as e:
         errors.append(f"LOG_UNREADABLE: {e}")
