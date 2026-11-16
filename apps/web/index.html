@@ -27,8 +27,9 @@
     <label id="recording-select-label">Recording <select id="recording-select"></select></label>
     <button id="discard-recording" hidden>Discard this addition</button>
   </div>
-  <form id="upload"><label for="files">Android ZIP or matching MP4 and LOG</label>
-    <input type="file" id="files" multiple accept=".zip,.mp4,.log,.csv" required>
+  <form id="upload">
+    <input type="file" id="files" aria-label="Recording files" multiple accept=".zip,.mp4,.log,.csv" required>
+    <button id="upload-info" class="info-button" type="button" aria-label="Supported recording files" aria-haspopup="dialog">i</button>
     <button>Upload</button> <progress id="upload-progress" max="100" hidden></progress>
   </form>
   <p id="assets"></p>
@@ -82,6 +83,20 @@
 </div>
 </section>
 </main>
+<dialog id="upload-help" aria-labelledby="upload-help-title">
+  <h2 id="upload-help-title">Supported recording files</h2>
+  <p>Choose the ZIP exported from the StreetView mobile app, or choose the matching MP4 video and GPS LOG from the same recording. You can upload the matching files together or one at a time.</p>
+  <form method="dialog"><button autofocus>Close</button></form>
+</dialog>
+<dialog id="delete-confirmation" aria-labelledby="delete-confirmation-title" aria-describedby="delete-confirmation-text">
+  <h2 id="delete-confirmation-title">Delete survey?</h2>
+  <p id="delete-confirmation-text"></p>
+  <p id="delete-confirmation-error" role="alert" hidden></p>
+  <div class="dialog-actions">
+    <form method="dialog"><button autofocus>Cancel</button></form>
+    <button id="confirm-delete" type="button" class="destructive">Delete survey</button>
+  </div>
+</dialog>
 <dialog id="about" aria-labelledby="about-title">
   <div class="about-heading">
     <div><h2 id="about-title">About StreetView</h2><p id="about-version"></p></div>

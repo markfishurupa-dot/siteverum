@@ -44,11 +44,31 @@ function validationMessage(message) {
   const label = labels[match[1]] || words[0].toUpperCase() + words.slice(1);
   return prefix + label + (match[2] ? ": " + match[2] : "");
 }
+function updatePublicationDot(button, state) {
+  const indicator = button.querySelector(".publication-dot");
+  indicator.hidden = state === "unpublished";
+  indicator.dataset.state = state;
+  const details = {current: "Published", outdated: "Changes pending publication"};
+  if (details[state]) {
+    indicator.title = details[state];
+    indicator.setAttribute("aria-label", details[state]);
+  } else {
+    indicator.removeAttribute("title");
+    indicator.removeAttribute("aria-label");
+  }
+}
 async function catalog() {
   const items = await api(root + "/surveys");
   $("catalog").replaceChildren(...items.map(item => {
     const li = document.createElement("li"), button = document.createElement("button");
-    button.textContent = item.label + (item.published ? " | Published locally" : "");
+    const name = document.createElement("span"), indicator = document.createElement("span");
+    name.className = "survey-name";
+    name.textContent = item.label;
+    indicator.className = "publication-dot";
+    indicator.setAttribute("role", "img");
+    button.append(name, indicator);
+    button.dataset.survey = item.id;
+    updatePublicationDot(button, item.publication_state);
     button.setAttribute("aria-current", item.id === survey);
     button.onclick = action(async () => select(item.id));
     li.append(button);
@@ -76,6 +96,8 @@ async function refresh() {
   const row = await api(base());
   if (requested !== survey) return;
   current = row;
+  const catalogEntry = $("catalog").querySelector('[data-survey="' + requested + '"]');
+  if (catalogEntry) updatePublicationDot(catalogEntry, row.publication_state);
   $("title").textContent = row.label;
   const recordings = new Map();
   for (const source of row.sources) {
@@ -135,6 +157,10 @@ async function refresh() {
   $("delete").disabled = !!active;
   $("layers-control").hidden = !ready;
   $("publication").hidden = !ready;
+  $("publication").disabled = !row.published && !row.can_publish;
+  $("save-publication").disabled = !row.can_publish;
+  $("save-publication").title = row.can_publish ? "" : "Process the current survey sources before publishing";
+  $("save-publication").textContent = row.publication_state === "outdated" ? "Republish map" : "Update published map";
   $("published-link").hidden = !row.published;
   $("published-link").href = "/" + encodeURIComponent(row.slug);
   $("save-publication").hidden = !row.published;
@@ -224,14 +250,35 @@ $("process").onsubmit = action(async () => {
   await refresh();
 });
 $("cancel").onclick = action(async () => { await api(root + "/jobs/" + current.jobs[0].id + "/cancel","POST"); await refresh(); });
-$("delete").onclick = action(async () => {
-  if (!confirm("Delete this survey from the catalog?")) return;
-  await api(base(),"DELETE");
-  survey = null;
-  $("survey").hidden = true;
-  $("message").textContent = "Survey deleted.";
-  await catalog();
-});
+$("upload-info").onclick = () => $("upload-help").showModal();
+let deleteTarget;
+$("delete").onclick = () => {
+  deleteTarget = survey;
+  $("delete-confirmation-error").hidden = true;
+  $("delete-confirmation-text").textContent =
+    'Delete "' + current.label + '" from the catalog? Any locally published map for this survey will become unavailable.';
+  $("delete-confirmation").showModal();
+};
+$("confirm-delete").onclick = async () => {
+  const button = $("confirm-delete");
+  button.disabled = true;
+  try {
+    await api(root + "/surveys/" + deleteTarget, "DELETE");
+    $("delete-confirmation").close();
+    if (survey === deleteTarget) {
+      survey = null;
+      current = null;
+      $("survey").hidden = true;
+      $("message").textContent = "Survey deleted.";
+    }
+    await catalog();
+  } catch (error) {
+    $("delete-confirmation-error").textContent = error.message;
+    $("delete-confirmation-error").hidden = false;
+  } finally {
+    button.disabled = false;
+  }
+};
 $("publication").onclick = action(async () => {
   await api(base() + "/publication/" + (current.published ? "unpublish" : "publish"), "POST",
     current.published ? undefined : {layers: $("publish-layers").value});

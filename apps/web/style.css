@@ -62,3 +62,15 @@ button, .button-link { white-space: nowrap; }
 .point-popup input { width: 100%; }
 .point-popup button { font-size: .86rem; padding: .35rem .5rem; }
 .edit-handle { display: grid; place-items: center; color: white; background: #175c6c; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 0 1px #175c6c; font-weight: bold; font-size: 19px; }
+
+#catalog button { display: flex; align-items: center; justify-content: space-between; gap: .5rem; white-space: normal; }
+.survey-name { min-width: 0; overflow-wrap: anywhere; }
+.publication-dot { flex: 0 0 .65rem; width: .65rem; height: .65rem; border-radius: 50%; }
+.publication-dot[data-state="current"] { background: #25844f; box-shadow: inset 0 0 0 1px #216743; }
+.publication-dot[data-state="outdated"] { background: #efc443; box-shadow: inset 0 0 0 1px #8a680d; }
+.info-button { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; padding: 0; border-radius: 50%; font-weight: 700; }
+#upload { align-items: center; }
+.dialog-actions { display: flex; justify-content: flex-end; align-items: center; gap: .6rem; }
+.dialog-actions form { margin: 0; }
+.destructive { color: white; border-color: #8a241e; background: #9a3028; }
+#delete-confirmation-error { color: #86241e; }

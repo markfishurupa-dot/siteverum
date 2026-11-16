@@ -49,9 +49,22 @@ def authenticate(request: Request, credentials: HTTPBasicCredentials = Depends(b
         raise HTTPException(403, "Missing request protection header")
 
 
+PUBLICATION_STATE = """CASE
+    WHEN NOT s.published OR s.published_job IS NULL THEN 'unpublished'
+    WHEN s.published_job IS DISTINCT FROM latest.id OR s.source_revision <> latest.source_revision THEN 'outdated'
+    ELSE 'current' END"""
+LATEST_COMPLETED = """LEFT JOIN LATERAL (
+    SELECT id,source_revision FROM jobs WHERE survey=s.id AND state='completed'
+    ORDER BY created DESC,id DESC LIMIT 1
+) latest ON true"""
+
+
 def survey_row(db, survey, lock=False):
-    sql = "SELECT id,label,created,validation,published,slug,map_layers FROM surveys WHERE id=%s AND NOT deleted"
-    row = db.execute(sql + (" FOR UPDATE" if lock else ""), (survey,)).fetchone()
+    sql = f"""SELECT s.id,s.label,s.created,s.validation,s.published,s.slug,s.map_layers,s.source_revision,
+        {PUBLICATION_STATE} AS publication_state,
+        COALESCE(latest.source_revision=s.source_revision, false) AS can_publish
+        FROM surveys s {LATEST_COMPLETED} WHERE s.id=%s AND NOT s.deleted"""
+    row = db.execute(sql + (" FOR UPDATE OF s" if lock else ""), (survey,)).fetchone()
     if not row:
         raise HTTPException(404, "Survey not found")
     return row
@@ -101,7 +114,8 @@ def index():
 @app.get("/api/v2/surveys", dependencies=[Depends(authenticate)])
 def catalog():
     with connect() as db:
-        return db.execute("SELECT id,label,created,published FROM surveys WHERE NOT deleted ORDER BY created DESC").fetchall()
+        return db.execute(f"""SELECT s.id,s.label,s.created,{PUBLICATION_STATE} AS publication_state
+            FROM surveys s {LATEST_COMPLETED} WHERE NOT s.deleted ORDER BY s.created DESC""").fetchall()
 
 
 @app.post("/api/v2/surveys", status_code=201, dependencies=[Depends(authenticate)])
@@ -186,7 +200,7 @@ async def upload(survey: UUID, filename: str, request: Request, recording: UUID 
                 storage=excluded.storage,sha256=excluded.sha256,bytes=excluded.bytes""",
                 (survey, kind, filename, str(path.relative_to(ROOT)), checksum, size, recording_id),
             )
-            db.execute("UPDATE surveys SET validation=NULL WHERE id=%s", (survey,))
+            db.execute("UPDATE surveys SET validation=NULL,source_revision=source_revision+1 WHERE id=%s", (survey,))
         keep = True
         return {"kind": kind, "bytes": size, "duplicate": False}
     finally:
@@ -207,7 +221,7 @@ def discard_recording(survey: UUID, recording: UUID):
         if completed:
             raise HTTPException(409, "This recording is already part of a completed run")
         db.execute("DELETE FROM sources WHERE survey=%s AND recording=%s", (survey, str(recording)))
-        db.execute("UPDATE surveys SET validation=NULL WHERE id=%s", (survey,))
+        db.execute("UPDATE surveys SET validation=NULL,source_revision=source_revision+1 WHERE id=%s", (survey,))
     return {"discarded": True}
 
 
@@ -296,9 +310,9 @@ def enqueue(survey: UUID, settings: Settings):
         fingerprint_data = [rows, config, corrections] if corrections else [rows, config]
         fingerprint = hashlib.sha256(json.dumps(fingerprint_data, sort_keys=True).encode()).hexdigest()
         existing = db.execute(
-            """SELECT id,state FROM jobs WHERE survey=%s AND fingerprint=%s
+            """SELECT id,state FROM jobs WHERE survey=%s AND fingerprint=%s AND source_revision=%s
             AND state IN ('queued','running','completed') ORDER BY created DESC LIMIT 1""",
-            (survey, fingerprint),
+            (survey, fingerprint, row["source_revision"]),
         ).fetchone()
         latest = db.execute(
             "SELECT id FROM jobs WHERE survey=%s AND state='completed' ORDER BY created DESC LIMIT 1",
@@ -309,8 +323,8 @@ def enqueue(survey: UUID, settings: Settings):
         idle(db, survey)
         job = uuid4()
         db.execute(
-            "INSERT INTO jobs (id,survey,fingerprint,state,settings) VALUES (%s,%s,%s,'queued',%s)",
-            (job, survey, fingerprint, Jsonb(config)),
+            "INSERT INTO jobs (id,survey,fingerprint,state,settings,source_revision) VALUES (%s,%s,%s,'queued',%s,%s)",
+            (job, survey, fingerprint, Jsonb(config), row["source_revision"]),
         )
         return {"id": job, "state": "queued"}
 
@@ -360,7 +374,7 @@ def move_point(survey: UUID, job: UUID, sequence: int, coordinates: PointCoordin
         survey_row(db, survey, True)
         idle(db, survey)
         latest = db.execute(
-            "SELECT id,settings FROM jobs WHERE survey=%s AND state='completed' ORDER BY created DESC LIMIT 1",
+            "SELECT id,settings,source_revision FROM jobs WHERE survey=%s AND state='completed' ORDER BY created DESC LIMIT 1",
             (survey,),
         ).fetchone()
         if not latest or latest["id"] != job:
@@ -370,9 +384,9 @@ def move_point(survey: UUID, job: UUID, sequence: int, coordinates: PointCoordin
         revision = uuid4()
         edit = {"parent": str(job), "sequence": sequence, **coordinates.model_dump()}
         db.execute(
-            """INSERT INTO jobs (id,survey,fingerprint,state,settings,coordinate_edit)
-            VALUES (%s,%s,%s,'queued',%s,%s)""",
-            (revision, survey, f"coordinate-edit:{revision}", Jsonb(latest["settings"]), Jsonb(edit)),
+            """INSERT INTO jobs (id,survey,fingerprint,state,settings,coordinate_edit,source_revision)
+            VALUES (%s,%s,%s,'queued',%s,%s,%s)""",
+            (revision, survey, f"coordinate-edit:{revision}", Jsonb(latest["settings"]), Jsonb(edit), latest["source_revision"]),
         )
         return {"id": revision, "state": "queued"}
 
@@ -393,7 +407,7 @@ def delete(survey: UUID):
     with connect() as db:
         survey_row(db, survey, True)
         idle(db, survey)
-        db.execute("UPDATE surveys SET deleted=true,published=false WHERE id=%s", (survey,))
+        db.execute("UPDATE surveys SET deleted=true,published=false,published_job=NULL WHERE id=%s", (survey,))
     return {"deleted": True}
 
 
@@ -406,13 +420,19 @@ def publish(survey: UUID, action: str, settings: PublicationSettings | None = No
     if action not in {"publish", "unpublish"}:
         raise HTTPException(404)
     with connect() as db:
-        survey_row(db, survey, True)
-        if action == "publish" and not db.execute(
-            "SELECT 1 FROM jobs WHERE survey=%s AND state='completed'", (survey,)
-        ).fetchone():
-            raise HTTPException(409, "Complete a run before publishing")
-        db.execute("UPDATE surveys SET published=%s,map_layers=COALESCE(%s,map_layers) WHERE id=%s",
-                   (action == "publish", settings.layers if settings else None, survey))
+        survey_data = survey_row(db, survey, True)
+        current = None
+        if action == "publish":
+            current = db.execute(
+                """SELECT id,source_revision FROM jobs WHERE survey=%s AND state='completed'
+                ORDER BY created DESC,id DESC LIMIT 1""", (survey,),
+            ).fetchone()
+            if not current or current["source_revision"] != survey_data["source_revision"]:
+                raise HTTPException(409, "Process the current survey sources before publishing")
+        db.execute(
+            "UPDATE surveys SET published=%s,published_job=%s,map_layers=COALESCE(%s,map_layers) WHERE id=%s",
+            (current is not None, current["id"] if current else None, settings.layers if settings else None, survey),
+        )
     return {"published": action == "publish"}
 
 
@@ -435,7 +455,7 @@ def published_run(slug):
     with connect() as db:
         row = db.execute(
             """SELECT s.label, s.map_layers, s.id AS survey, j.id AS job
-            FROM surveys s JOIN jobs j ON j.survey=s.id
+            FROM surveys s JOIN jobs j ON j.id=s.published_job AND j.survey=s.id
             WHERE lower(s.slug)=lower(%s) AND s.published AND NOT s.deleted AND j.state='completed'
             ORDER BY j.created DESC LIMIT 1""", (slug,),
         ).fetchone()

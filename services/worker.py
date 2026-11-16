@@ -57,20 +57,23 @@ def process_job(row):
                 ON CONFLICT (survey,identity) DO UPDATE SET longitude=excluded.longitude,latitude=excluded.latitude""",
                 (survey, correction_identity, edit["lon"], edit["lat"]),
             )
-        for feature in points["features"]:
-            properties = feature["properties"]
-            db.execute("INSERT INTO frames VALUES (%s,%s,ST_SetSRID(ST_GeomFromGeoJSON(%s),4326),%s)",
-                       (job, properties["frame_index"], json.dumps(feature["geometry"]), Jsonb(properties)))
+        with db.cursor() as cursor:
+            cursor.executemany(
+                "INSERT INTO frames VALUES (%s,%s,ST_SetSRID(ST_GeomFromGeoJSON(%s),4326),%s)",
+                [(job, feature["properties"]["frame_index"], json.dumps(feature["geometry"]),
+                  Jsonb(feature["properties"])) for feature in points["features"]],
+            )
         if route["features"]:
             geometry = {"type": "MultiLineString",
                         "coordinates": [feature["geometry"]["coordinates"] for feature in route["features"]]}
             db.execute("INSERT INTO routes VALUES (%s,ST_SetSRID(ST_GeomFromGeoJSON(%s),4326))",
                        (job, json.dumps(geometry)))
-        for artifact in output.rglob("*"):
-            if artifact.is_file():
-                db.execute("INSERT INTO artifacts VALUES (%s,%s,%s)",
-                           (job, artifact.relative_to(output).as_posix(), artifact.stat().st_size))
-
+        with db.cursor() as cursor:
+            cursor.executemany(
+                "INSERT INTO artifacts VALUES (%s,%s,%s)",
+                [(job, artifact.relative_to(output).as_posix(), artifact.stat().st_size)
+                 for artifact in output.rglob("*") if artifact.is_file()],
+            )
 
 
 def extract_recordings(row, output):
@@ -81,6 +84,8 @@ def extract_recordings(row, output):
         shutil.rmtree(interrupted)
     with connect() as db:
         groups = source_groups(db, survey)
+        validation = db.execute("SELECT validation FROM surveys WHERE id=%s", (survey,)).fetchone()["validation"] or {}
+        reports = validation.get("recordings", {"primary": validation})
         corrections = {r["identity"]: [r["longitude"], r["latitude"]] for r in db.execute(
             "SELECT identity,longitude,latitude FROM point_corrections WHERE survey=%s", (survey,),
         )}
@@ -108,7 +113,7 @@ def extract_recordings(row, output):
 
             metadata = process.run(video, track, destination, **options,
                                    checkpoint=recording_progress, package=len(groups) == 1,
-                                   corrections=corrections)
+                                   corrections=corrections, validated=reports.get(recording))
             completed.append((recording, destination, metadata))
         if len(completed) > 1:
             merged = work / "merged"

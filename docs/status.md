@@ -63,3 +63,15 @@ Version 2.0.0-alpha.4 uses readable English status messages, shows a spinner dur
 Corrections create a new revision, reuse existing photos, and update the point geometries, corresponding route vertices and portable GIS export. Observed coordinates remain in the revision metadata. Reprocessing reapplies saved edits to matching observations. Existing processed runs can read missing telemetry from their matching GPS log. Published maps are view-only.
 
 The Docker/Edge test verified validation and the two CSV files, processing progress and cancellation, both editing methods, revised point and route exports and image bytes, correction persistence on reprocessing, and the absence of editing on the published page. The existing published survey and legacy telemetry were also checked. Eleven Python tests passed with the private sample configured, including independent route segments and exclusion record numbering.
+
+## Publication indicators and batch extraction
+
+Version 2.0.0-alpha.5 pins each published URL to the run explicitly selected for publication. It uses a green dot for the current publication and yellow when sources or completed results change. Unpublished surveys have no dot. Existing publications were backfilled to their current completed run. Upload information and survey deletion now use in-page dialogs.
+
+The processor selects the same numbered frames and encodes them at the same JPEG quality and rotation in a single FFmpeg pass per recording. It verifies the output JPEG sequence in a separate pass and skips repeating full preflight media decoding when input digests still match an already fully validated recording. It writes spatial records in database batches.
+
+Local Docker benchmark, with the same recordings, rotation settings, and direct processor invocation for both builds:
+- Short recording, seven photos: 13.959 s before and 6.228 s after. All JPEG, GeoJSON and CSV hashes matched.
+- Long recording, 128 photos: 90.958 s after. The old run was stopped without completing after at least 288.14 s of extraction. All 57 finished JPEGs captured before stopping matched their counterparts byte for byte. This comparison is against the previous portal processor.
+- Twelve Python tests passed with the private sample configured. A synthetic smoke test compared batch and single-frame extraction, including a repeated source frame and a rotated last frame.
+- Edge verified the upload information dialog, absent/green/yellow indicators, preservation of the published run until republication, and both cancel and confirm in the deletion dialog.

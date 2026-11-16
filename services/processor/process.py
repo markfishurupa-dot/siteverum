@@ -14,10 +14,12 @@ if __package__:
     from . import preflight
     from .coordinates import apply_correction, point_identity
     from .exports import package_run, write_json, write_points
+    from .extraction import extract_frames
 else:
     import preflight
     from coordinates import apply_correction, point_identity
     from exports import package_run, write_json, write_points
+    from extraction import extract_frames
 
 MAX_SNAP_SECONDS = 0.10
 
@@ -73,9 +75,13 @@ def sampled_fixes(fixes, mode, interval, max_accuracy):
 
 def run(video, log, output, max_snap=MAX_SNAP_SECONDS, *, sampling="gps_fix",
         interval=1, max_accuracy=None, rotation=0, manual_points=(), checkpoint=lambda progress: None, package=True,
-        corrections=None):
+        corrections=None, validated=None):
     checkpoint(2)
-    report=preflight.validate(video,log,None,20,True)
+    report = validated
+    if (not report or not report.get("can_process") or not report["video"].get("full_decode_passed")
+            or preflight.hash_file(video) != report["video"]["sha256"]
+            or preflight.hash_file(log) != report["gps"]["sha256"]):
+        report = preflight.validate(video, log, None, 20, True)
     if not report['can_process']: raise ValueError('Preflight failed: ' + ', '.join(report['errors']))
     if output.exists(): raise FileExistsError('Output already exists; choose a new run directory')
     times=frame_times(video)
@@ -95,8 +101,7 @@ def run(video, log, output, max_snap=MAX_SNAP_SECONDS, *, sampling="gps_fix",
         if len(selected) > 10000:
             raise ValueError("Sampling exceeds 10,000 images")
         used = set()
-        for position, fix in enumerate(selected):
-            checkpoint(5 + int(85 * position / len(selected)))
+        for fix in selected:
             ms=int(fix['video_elapsed_ms'])
             if ms < 0: continue
             target=ms/1000 + times[0]
@@ -113,12 +118,11 @@ def run(video, log, output, max_snap=MAX_SNAP_SECONDS, *, sampling="gps_fix",
             if not fix.get("manual"):
                 used.add(index)
             image=f"images/{len(rows):06d}.jpg"
-            subprocess.run(['ffmpeg','-nostdin','-v','error','-xerror','-protocol_whitelist','file','-threads','2','-i',str(video),'-map','0:v:0','-vf',f'select=eq(n\\,{index}){rotation_filter}','-frames:v','1','-q:v','2',str(tmp/image)],check=True,capture_output=True,timeout=300)
-            subprocess.run(['ffmpeg','-nostdin','-v','error','-xerror','-protocol_whitelist','file','-i',str(tmp/image),'-f','null','-'],check=True,capture_output=True,timeout=60)
             rows.append({'frame_index':len(rows),'image_path':image,'requested_ms':ms,'actual_pts':times[index],'source_frame_index':index,'lat':float(fix['lat']),'lon':float(fix['lon']),'accuracy_m':fix.get('accuracy_m',''),'bearing':fix.get('bearing',''),
                          'speed_mps':fix.get('speed_mps',''),'alt_m':fix.get('alt_m',''),
                          'manual':fix.get('manual',False),'interpolated':fix.get('interpolated',False),'fix_gap_ms':fix.get('fix_gap_ms',0)})
         if not rows: raise ValueError('No valid frames within tolerance')
+        extract_frames(video, rows, tmp, rotation_filter, checkpoint)
         features = [
             {"type": "Feature", "geometry": {"type": "Point", "coordinates": [row["lon"], row["lat"]]},
              "properties": {key: value for key, value in row.items() if key not in ("lon", "lat")}}
