@@ -12,6 +12,7 @@ from tempfile import TemporaryDirectory
 import urllib.error
 import urllib.request
 import zipfile
+from uuid import uuid4
 
 from playwright.sync_api import expect, sync_playwright
 import pyogrio
@@ -94,7 +95,22 @@ def browser_import(page, label, files, target, loose=False):
     return verify_bundle(downloaded.value.path().read_bytes(), target), page.locator("#photo").get_attribute("src")
 
 
+def cleanup_surveys(labels):
+    for survey in json.loads(request("/api/v2/surveys")):
+        if survey["label"] in labels:
+            request("/api/v2/surveys/" + survey["id"], "DELETE")
+
+
 def main():
+    suffix = uuid4().hex[:10]
+    labels = [f"Acceptance {case} {suffix}" for case in ("ZIP", "loose", "invalid")]
+    try:
+        run_acceptance(*labels)
+    finally:
+        cleanup_surveys(labels)
+
+
+def run_acceptance(zip_label, loose_label, invalid_label):
     request("/api/v2/surveys", auth=False, expected=401)
     with TemporaryDirectory() as tmp:
         target = Path(tmp)
@@ -110,8 +126,8 @@ def main():
             context = browser.new_context(http_credentials={"username": "admin", "password": password})
             page = context.new_page()
             page.goto(base)
-            a, media = browser_import(page, "Acceptance ZIP", fixture, target / "zip.gpkg")
-            b, _ = browser_import(page, "Acceptance loose", files, target / "loose.gpkg", loose=True)
+            a, media = browser_import(page, zip_label, fixture, target / "zip.gpkg")
+            b, _ = browser_import(page, loose_label, files, target / "loose.gpkg", loose=True)
             assert a == b
             request(media, auth=False, expected=401)
             page.get_by_role("button", name="Publish locally", exact=True).click()
@@ -119,7 +135,7 @@ def main():
             request(media, auth=False, expected=401)
             page.get_by_role("button", name="Unpublish locally", exact=True).click()
             expect(page.locator("#publication")).to_have_text("Publish locally")
-        survey = json.loads(request("/api/v2/surveys", "POST", b'{"label":"Acceptance invalid"}', expected=201))["id"]
+        survey = json.loads(request("/api/v2/surveys", "POST", json.dumps({"label": invalid_label}).encode(), expected=201))["id"]
         path = f"/api/v2/surveys/{survey}"
         request(path + "/process", "POST", b"{}", expected=409)
         archive = io.BytesIO()

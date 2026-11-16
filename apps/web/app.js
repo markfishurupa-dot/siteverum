@@ -1,6 +1,6 @@
 "use strict";
 const $ = id => document.getElementById(id);
-let survey, current, shownRun, viewer;
+let survey, current, shownRun, viewer, selectedRecording = "primary";
 const root = "/api/v2";
 const base = () => root + "/surveys/" + survey;
 
@@ -34,6 +34,7 @@ async function catalog() {
 async function select(id) {
   survey = id;
   shownRun = null;
+  selectedRecording = "primary";
   $("survey").hidden = false;
   $("results").hidden = true;
   $("files").value = "";
@@ -47,10 +48,27 @@ async function refresh() {
   if (requested !== survey) return;
   current = row;
   $("title").textContent = row.label;
-  const kinds = row.sources.map(x => x.kind);
+  const recordings = new Map();
+  for (const source of row.sources) {
+    if (!recordings.has(source.recording)) recordings.set(source.recording, []);
+    recordings.get(source.recording).push(source);
+  }
+  const selected = recordings.get(selectedRecording) || [];
+  const kinds = selected.map(source => source.kind);
   const pairReady = kinds.includes("zip") || (kinds.includes("video") && kinds.includes("track"));
-  $("assets").textContent = row.sources.map(x => x.filename).join(", ") ||
-    "No source files uploaded.";
+  const choices = [...recordings.keys()];
+  if (!choices.includes(selectedRecording)) choices.push(selectedRecording);
+  $("recording-select").replaceChildren(...choices.map((key, index) => {
+    const option = document.createElement("option");
+    option.value = key;
+    const name = recordings.get(key)?.[0]?.filename;
+    option.textContent = name ? "Recording " + (index + 1) + " | " + name : "New recording";
+    return option;
+  }));
+  $("recording-select").value = selectedRecording;
+  $("recording-select-label").hidden = choices.length < 2;
+  $("recording-tools").hidden = !row.jobs.some(job => job.state === "completed") && choices.length < 2;
+  $("assets").textContent = selected.map(source => source.filename).join(", ") || "No source files uploaded.";
   $("message").textContent = pairReady ? "Sources staged" :
     kinds.includes("video") ? "Waiting for matching GPS log" :
     kinds.includes("track") ? "Waiting for matching video" : "Choose a ZIP or matching files";
@@ -63,20 +81,32 @@ async function refresh() {
   }));
   const latest = row.jobs[0];
   const active = latest && ["queued","running"].includes(latest.state);
+  const ready = row.jobs.find(job => job.state === "completed");
+  const included = selectedRecording === "primary" ||
+    ready?.metadata?.recordings?.some(item => item.recording === selectedRecording);
+  $("upload").hidden = !!ready && !!included;
+  $("add-recording").disabled = !!active || !recordings.has(selectedRecording);
+  $("discard-recording").hidden = selectedRecording === "primary" || !!included;
+  $("discard-recording").disabled = !!active;
   $("start").disabled = !validation?.can_process || !!active;
   $("job").textContent = latest ? [latest.state, latest.progress + "%", latest.error].filter(Boolean).join(" В· ") : "";
   $("cancel").hidden = !active;
   $("published-link").hidden = !row.published;
   $("published-link").href = "/" + encodeURIComponent(row.slug);
   $("add-point-button").disabled = !!active || !validation?.can_process;
+  $("save-publication").hidden = !row.published;
+  if ($("publish-layers").dataset.survey !== requested) {
+    $("publish-layers").value = row.map_layers;
+    $("publish-layers").dataset.survey = requested;
+  }
   $("publication").textContent = row.published ? "Unpublish locally" : "Publish locally";
-  const ready = row.jobs.find(job => job.state === "completed");
   if (ready && ready.id !== shownRun) await showRun(ready.id, requested);
 }
-function upload(file) {
+function upload(file, target, recording) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("PUT", base() + "/assets/" + encodeURIComponent(file.name));
+    xhr.open("PUT", target + "/assets/" + encodeURIComponent(file.name) +
+      (recording === "primary" ? "" : "?recording=" + recording));
     xhr.setRequestHeader("X-StreetView-Request","1");
     xhr.upload.onprogress = e => { if (e.lengthComputable) $("upload-progress").value = 100 * e.loaded / e.total; };
     xhr.onload = () => xhr.status < 300 ? resolve() : reject(Error(JSON.parse(xhr.responseText || "{}").detail || "Upload failed"));
@@ -91,9 +121,27 @@ $("create").onsubmit = action(async () => {
 });
 $("upload").onsubmit = action(async () => {
   const files = Array.from($("files").files);
+  const target = base(), recording = selectedRecording;
   $("upload-progress").hidden = false;
-  try { for (const file of files) await upload(file); }
+  try { for (const file of files) await upload(file, target, recording); }
   finally { $("upload-progress").hidden = true; await refresh(); }
+});
+$("add-recording").onclick = action(async () => {
+  selectedRecording = crypto.randomUUID();
+  $("files").value = "";
+  await refresh();
+  $("files").focus();
+});
+$("recording-select").onchange = action(async () => {
+  selectedRecording = $("recording-select").value;
+  $("files").value = "";
+  await refresh();
+});
+$("discard-recording").onclick = action(async () => {
+  if (current.sources.some(source => source.recording === selectedRecording))
+    await api(base() + "/recordings/" + selectedRecording, "DELETE");
+  selectedRecording = "primary";
+  await refresh();
 });
 $("validate").onclick = action(async () => {
   $("message").textContent = "Validating and decoding videoвЂ¦";
@@ -119,9 +167,21 @@ $("delete").onclick = action(async () => {
   await catalog();
 });
 $("publication").onclick = action(async () => {
-  await api(base() + "/publication/" + (current.published ? "unpublish" : "publish"),"POST");
+  await api(base() + "/publication/" + (current.published ? "unpublish" : "publish"), "POST",
+    current.published ? undefined : {layers: $("publish-layers").value});
   await refresh(); await catalog();
 });
+$("save-publication").onclick = action(async () => {
+  await api(base() + "/publication/publish", "POST", {layers: $("publish-layers").value});
+  await refresh();
+  $("message").textContent = "Published map updated.";
+});
+$("about-open").onclick = () => $("about").showModal();
+action(async () => {
+  const info = await api(root + "/version");
+  $("about-open").textContent = "Version " + info.version;
+  $("about-version").textContent = "Private alpha | " + info.version;
+})();
 const artifact = (job, name) => base() + "/runs/" + job + "/" + name;
 async function showRun(job, requested) {
   const [data, route] = await Promise.all([api(artifact(job,"points.geojson")), api(artifact(job,"route.geojson"))]);

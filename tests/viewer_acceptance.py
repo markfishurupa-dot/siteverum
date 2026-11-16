@@ -2,13 +2,22 @@
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from uuid import uuid4
 
 from playwright.sync_api import expect, sync_playwright
 
-from compose_acceptance import base, browser_import, fixture, password, request
+from compose_acceptance import base, browser_import, cleanup_surveys, fixture, password, request
 
 
 def main():
+    label = "Viewer acceptance " + uuid4().hex[:10]
+    try:
+        run_acceptance(label)
+    finally:
+        cleanup_surveys([label])
+
+
+def run_acceptance(label):
     with TemporaryDirectory() as tmp, sync_playwright() as playwright:
         browser = playwright.chromium.launch(channel="msedge")
         page = browser.new_context(http_credentials={"username": "admin", "password": password}).new_page()
@@ -19,7 +28,7 @@ def main():
             tile.abort()
         page.route("https://tile.openstreetmap.org/**", intercept)
         page.goto(base)
-        browser_import(page, "Viewer acceptance", fixture, Path(tmp) / "original.gpkg")
+        browser_import(page, label, fixture, Path(tmp) / "original.gpkg")
         page.get_by_text("OpenStreetMap", exact=True).click()
         expect(page.locator(".leaflet-control-attribution")).to_contain_text("OpenStreetMap")
         assert tiles
@@ -60,7 +69,7 @@ def main():
         url = link.get_attribute("href")
         published = page.context.new_page()
         published.goto(base + url)
-        expect(published.locator("#title")).to_have_text("Viewer acceptance")
+        expect(published.locator("#title")).to_have_text(label)
         expect(published.locator("#caption")).to_contain_text("Photo 1 of 8")
         expect(published.locator("#add-point")).to_have_count(0)
         request(url, auth=False, expected=401)

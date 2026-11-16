@@ -3,11 +3,12 @@ import logging
 import shutil
 import time
 import tempfile
+from pathlib import Path
 
 from psycopg.types.json import Jsonb
 
-from processor import preflight, process
-from runtime import ROOT, connect, run_path
+from processor import merge, preflight, process
+from runtime import ROOT, connect, run_path, source_groups
 
 log = logging.getLogger("streetview.worker")
 
@@ -36,20 +37,36 @@ def process_job(row):
     for interrupted in staging.glob("archive-*"):
         shutil.rmtree(interrupted)
     with connect() as db:
-        paths = {r["kind"]: ROOT / r["storage"] for r in db.execute(
-            "SELECT kind,storage FROM sources WHERE survey=%s", (survey,)
-        )}
+        groups = source_groups(db, survey)
     with tempfile.TemporaryDirectory(prefix="archive-", dir=staging) as temp:
-        if "zip" in paths:
-            errors = []
-            from pathlib import Path
-            video, track = preflight.safe_zip_extract_pair(paths["zip"], Path(temp), errors)
-            if errors:
-                raise ValueError("Archive no longer validates")
-        else:
-            video, track = paths["video"], paths["track"]
-        metadata = process.run(video, track, output, **row["settings"],
-                               checkpoint=lambda progress: checkpoint(job, progress))
+        work = Path(temp)
+        completed = []
+        for position, (recording, items) in enumerate(groups.items()):
+            paths = {kind: ROOT / item["storage"] for kind, item in items.items()}
+            folder = work / str(position)
+            folder.mkdir()
+            if "zip" in paths:
+                errors = []
+                video, track = preflight.safe_zip_extract_pair(paths["zip"], folder, errors)
+                if errors:
+                    raise ValueError(f"Recording {position + 1} archive no longer validates")
+            else:
+                video, track = paths["video"], paths["track"]
+            options = dict(row["settings"])
+            if position:
+                options.pop("manual_points", None)
+            destination = output if len(groups) == 1 else folder / "output"
+
+            def recording_progress(progress):
+                checkpoint(job, int((position + progress / 100) * 94 / len(groups)))
+
+            metadata = process.run(video, track, destination, **options,
+                                   checkpoint=recording_progress, package=len(groups) == 1)
+            completed.append((recording, destination, metadata))
+        if len(completed) > 1:
+            merged = work / "merged"
+            metadata = merge.combine(completed, merged, lambda progress: checkpoint(job, progress))
+            merged.rename(output)
     points = json.loads((output / "points.geojson").read_text(encoding="utf-8"))
     route = json.loads((output / "route.geojson").read_text(encoding="utf-8"))
     with connect() as db:
@@ -64,8 +81,10 @@ def process_job(row):
             db.execute("INSERT INTO frames VALUES (%s,%s,ST_SetSRID(ST_GeomFromGeoJSON(%s),4326),%s)",
                        (job, properties["frame_index"], json.dumps(feature["geometry"]), Jsonb(properties)))
         if route["features"]:
+            geometry = {"type": "MultiLineString",
+                        "coordinates": [feature["geometry"]["coordinates"] for feature in route["features"]]}
             db.execute("INSERT INTO routes VALUES (%s,ST_SetSRID(ST_GeomFromGeoJSON(%s),4326))",
-                       (job, json.dumps(route["features"][0]["geometry"])))
+                       (job, json.dumps(geometry)))
         for artifact in output.rglob("*"):
             if artifact.is_file():
                 db.execute("INSERT INTO artifacts VALUES (%s,%s,%s)",

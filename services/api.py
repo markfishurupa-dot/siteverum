@@ -17,7 +17,8 @@ from psycopg.types.json import Jsonb
 from pydantic import BaseModel, Field
 
 from processor import preflight
-from runtime import ROOT, connect, migrate, run_path
+from runtime import ROOT, connect, migrate, run_path, source_groups
+from version import VERSION
 
 WEB = Path(__file__).resolve().parents[1] / "apps/web"
 LIMITS = {"video": 1024**3, "track": 16 * 1024**2, "zip": 1024**3}
@@ -47,7 +48,7 @@ def authenticate(request: Request, credentials: HTTPBasicCredentials = Depends(b
 
 
 def survey_row(db, survey, lock=False):
-    sql = "SELECT id,label,created,validation,published,slug FROM surveys WHERE id=%s AND NOT deleted"
+    sql = "SELECT id,label,created,validation,published,slug,map_layers FROM surveys WHERE id=%s AND NOT deleted"
     row = db.execute(sql + (" FOR UPDATE" if lock else ""), (survey,)).fetchone()
     if not row:
         raise HTTPException(404, "Survey not found")
@@ -57,11 +58,6 @@ def survey_row(db, survey, lock=False):
 def idle(db, survey):
     if db.execute("SELECT 1 FROM jobs WHERE survey=%s AND state IN ('queued','running')", (survey,)).fetchone():
         raise HTTPException(409, "A job is active for this survey")
-
-
-def sources(db, survey):
-    rows = db.execute("SELECT kind,filename,storage,sha256,bytes FROM sources WHERE survey=%s ORDER BY kind", (survey,))
-    return {row["kind"]: row for row in rows}
 
 
 class SurveyCreate(BaseModel):
@@ -81,6 +77,11 @@ class Settings(BaseModel):
     sampling: str = Field(default="gps_fix", pattern="^(gps_fix|time|distance)$")
     interval: float = Field(default=1.0, ge=0.1, le=10000)
     max_accuracy: float | None = Field(default=None, gt=0, le=10000)
+
+
+@app.get("/api/v2/version", dependencies=[Depends(authenticate)])
+def version():
+    return {"version": VERSION}
 
 
 @app.get("/health")
@@ -120,8 +121,8 @@ def detail(survey: UUID):
     with connect() as db:
         row = survey_row(db, survey)
         row["sources"] = [
-            {key: value for key, value in item.items() if key != "storage"}
-            for item in sources(db, survey).values()
+            {**{key: value for key, value in item.items() if key != "storage"}, "recording": recording}
+            for recording, items in source_groups(db, survey).items() for item in items.values()
         ]
         row["jobs"] = db.execute(
             "SELECT id,state,progress,error,metadata,settings FROM jobs WHERE survey=%s ORDER BY created DESC", (survey,)
@@ -130,7 +131,8 @@ def detail(survey: UUID):
 
 
 @app.put("/api/v2/surveys/{survey}/assets/{filename}", dependencies=[Depends(authenticate)])
-async def upload(survey: UUID, filename: str, request: Request):
+async def upload(survey: UUID, filename: str, request: Request, recording: UUID | None = None):
+    recording_id = str(recording) if recording else "primary"
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_. -]{0,150}", filename):
         raise HTTPException(400, "Invalid source basename")
     kind = EXTENSIONS.get(Path(filename).suffix.lower())
@@ -167,17 +169,20 @@ async def upload(survey: UUID, filename: str, request: Request):
         with connect() as db:
             survey_row(db, survey, True)
             idle(db, survey)
-            current = sources(db, survey)
+            groups = source_groups(db, survey)
+            current = groups.get(recording_id, {})
+            if not current and len(groups) >= 20:
+                raise HTTPException(409, "A survey can contain up to 20 recordings")
             old = current.get(kind)
             if old and old["sha256"] == checksum and old["filename"] == filename:
                 return {"kind": kind, "bytes": size, "duplicate": True}
             if (kind == "zip" and set(current) - {"zip"}) or (kind != "zip" and "zip" in current):
-                raise HTTPException(409, "Use a new survey to switch between ZIP and separate files")
+                raise HTTPException(409, "Each recording accepts one ZIP or a matching MP4 and LOG. Use Add recording for another capture.")
             db.execute(
-                """INSERT INTO sources VALUES (%s,%s,%s,%s,%s,%s)
-                ON CONFLICT (survey,kind) DO UPDATE SET filename=excluded.filename,
+                """INSERT INTO sources (survey,kind,filename,storage,sha256,bytes,recording) VALUES (%s,%s,%s,%s,%s,%s,%s)
+                ON CONFLICT (survey,recording,kind) DO UPDATE SET filename=excluded.filename,
                 storage=excluded.storage,sha256=excluded.sha256,bytes=excluded.bytes""",
-                (survey, kind, filename, str(path.relative_to(ROOT)), checksum, size),
+                (survey, kind, filename, str(path.relative_to(ROOT)), checksum, size, recording_id),
             )
             db.execute("UPDATE surveys SET validation=NULL WHERE id=%s", (survey,))
         keep = True
@@ -186,6 +191,22 @@ async def upload(survey: UUID, filename: str, request: Request):
         if not keep:
             path.unlink(missing_ok=True)
             asset.rmdir()
+
+
+@app.delete("/api/v2/surveys/{survey}/recordings/{recording}", dependencies=[Depends(authenticate)])
+def discard_recording(survey: UUID, recording: UUID):
+    with connect() as db:
+        survey_row(db, survey, True)
+        idle(db, survey)
+        completed = db.execute(
+            """SELECT 1 FROM jobs WHERE survey=%s AND state='completed'
+            AND metadata->'recordings' @> %s""", (survey, Jsonb([{"recording": str(recording)}])),
+        ).fetchone()
+        if completed:
+            raise HTTPException(409, "This recording is already part of a completed run")
+        db.execute("DELETE FROM sources WHERE survey=%s AND recording=%s", (survey, str(recording)))
+        db.execute("UPDATE surveys SET validation=NULL WHERE id=%s", (survey,))
+    return {"discarded": True}
 
 
 def source_paths(rows):
@@ -197,8 +218,28 @@ def validate(survey: UUID):
     with connect() as db:
         survey_row(db, survey, True)
         idle(db, survey)
-        paths = source_paths(sources(db, survey))
-        report = preflight.validate(paths.get("video"), paths.get("track"), paths.get("zip"), 20, True)
+        groups = source_groups(db, survey) or {"primary": {}}
+        reports = {}
+        seen = set()
+        for recording, items in groups.items():
+            paths = source_paths(items)
+            result = preflight.validate(paths.get("video"), paths.get("track"), paths.get("zip"), 20, True)
+            if result["can_process"]:
+                hashes = (result["video"]["sha256"], result["gps"]["sha256"])
+                if hashes in seen:
+                    result["errors"].append("This recording duplicates another recording in the survey")
+                    result["can_process"] = False
+                seen.add(hashes)
+            reports[recording] = result
+        if tuple(reports) == ("primary",):
+            report = reports["primary"]
+        else:
+            report = {
+                "can_process": all(r["can_process"] for r in reports.values()),
+                "recordings": reports,
+                **{field: [f"Recording {i}: {m}" for i, r in enumerate(reports.values(), 1) for m in r[field]]
+                   for field in ("errors", "warnings")},
+            }
         db.execute("UPDATE surveys SET validation=%s WHERE id=%s", (Jsonb(report), survey))
         return report
 
@@ -209,9 +250,12 @@ def enqueue(survey: UUID, settings: Settings):
         row = survey_row(db, survey, True)
         if not (row["validation"] or {}).get("can_process"):
             raise HTTPException(409, "Validate a complete input pair first")
-        rows = sources(db, survey)
+        groups = source_groups(db, survey)
+        rows = groups["primary"] if tuple(groups) == ("primary",) else groups
         config = settings.model_dump()
-        duration_ms = row["validation"]["video"]["duration_seconds"] * 1000
+        validation = row["validation"]
+        first_recording = validation.get("recordings", {"primary": validation})[next(iter(groups))]
+        duration_ms = first_recording["video"]["duration_seconds"] * 1000
         if any(point.video_elapsed_ms > duration_ms for point in settings.manual_points):
             raise HTTPException(422, "A photo point is beyond the end of the video")
         # Cache compatibility with completed jobs created before these settings existed.
@@ -260,8 +304,12 @@ def delete(survey: UUID):
     return {"deleted": True}
 
 
+class PublicationSettings(BaseModel):
+    layers: Literal["both", "route", "points"] = "both"
+
+
 @app.post("/api/v2/surveys/{survey}/publication/{action}", dependencies=[Depends(authenticate)])
-def publish(survey: UUID, action: str):
+def publish(survey: UUID, action: str, settings: PublicationSettings | None = None):
     if action not in {"publish", "unpublish"}:
         raise HTTPException(404)
     with connect() as db:
@@ -270,7 +318,8 @@ def publish(survey: UUID, action: str):
             "SELECT 1 FROM jobs WHERE survey=%s AND state='completed'", (survey,)
         ).fetchone():
             raise HTTPException(409, "Complete a run before publishing")
-        db.execute("UPDATE surveys SET published=%s WHERE id=%s", (action == "publish", survey))
+        db.execute("UPDATE surveys SET published=%s,map_layers=COALESCE(%s,map_layers) WHERE id=%s",
+                   (action == "publish", settings.layers if settings else None, survey))
     return {"published": action == "publish"}
 
 
@@ -292,7 +341,7 @@ def artifact(survey: UUID, job: UUID, filename: str):
 def published_run(slug):
     with connect() as db:
         row = db.execute(
-            """SELECT s.label, s.id AS survey, j.id AS job
+            """SELECT s.label, s.map_layers, s.id AS survey, j.id AS job
             FROM surveys s JOIN jobs j ON j.survey=s.id
             WHERE lower(s.slug)=lower(%s) AND s.published AND NOT s.deleted AND j.state='completed'
             ORDER BY j.created DESC LIMIT 1""", (slug,),
@@ -305,7 +354,7 @@ def published_run(slug):
 @app.get("/api/v2/published/{slug}", dependencies=[Depends(authenticate)])
 def publication(slug: str):
     row = published_run(slug)
-    return {"label": row["label"], "job": row["job"]}
+    return {"label": row["label"], "job": row["job"], "layers": row["map_layers"]}
 
 
 @app.get("/api/v2/published/{slug}/files/{job}/{filename:path}", dependencies=[Depends(authenticate)])
@@ -313,6 +362,10 @@ def published_file(slug: str, job: UUID, filename: str):
     row = published_run(slug)
     if row["job"] != job:
         raise HTTPException(404, "Reload the survey map for the latest run")
+    if row["map_layers"] == "route" and filename != "route.geojson":
+        raise HTTPException(404)
+    if row["map_layers"] == "points" and filename == "route.geojson":
+        raise HTTPException(404)
     return artifact(row["survey"], job, filename)
 
 

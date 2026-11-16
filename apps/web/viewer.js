@@ -28,9 +28,13 @@ class SurveyViewer {
     this.points = points.features;
     this.file = file;
     this.route.clearLayers();
-    L.geoJSON(route, {style: {color: "#287691", weight: 4}}).addTo(this.route);
+    const line = L.geoJSON(route, {style: {color: "#287691", weight: 4}}).addTo(this.route);
     this.map.invalidateSize();
-    if (!this.points.length) return;
+    if (!this.points.length) {
+      this.drawMarkers();
+      if (line.getBounds().isValid()) this.map.fitBounds(line.getBounds(), {padding: [25, 25], maxZoom: 19});
+      return;
+    }
     const locations = this.points.map(feature => this.location(feature));
     this.map.fitBounds(L.latLngBounds(locations), {padding: [25, 25], maxZoom: 19});
     this.showPhoto(0, false);
@@ -73,6 +77,7 @@ class SurveyViewer {
     document.getElementById("download-photo").href = url;
     document.getElementById("caption").textContent =
       "Photo " + (index + 1) + " of " + this.points.length + " | " + properties.actual_pts.toFixed(3) + " s" +
+      (properties.recording_number ? " | Recording " + properties.recording_number : "") +
       (properties.manual ? " | Added manually" : "");
     document.getElementById("previous").disabled = index === 0;
     document.getElementById("next").disabled = index === this.points.length - 1;

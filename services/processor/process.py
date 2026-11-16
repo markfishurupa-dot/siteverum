@@ -92,7 +92,7 @@ def sampled_fixes(fixes, mode, interval, max_accuracy):
 
 
 def run(video, log, output, max_snap=MAX_SNAP_SECONDS, *, sampling="gps_fix",
-        interval=1, max_accuracy=None, rotation=0, manual_points=(), checkpoint=lambda progress: None):
+        interval=1, max_accuracy=None, rotation=0, manual_points=(), checkpoint=lambda progress: None, package=True):
     checkpoint(2)
     report=preflight.validate(video,log,None,20,True)
     if not report['can_process']: raise ValueError('Preflight failed: ' + ', '.join(report['errors']))
@@ -149,9 +149,10 @@ def run(video, log, output, max_snap=MAX_SNAP_SECONDS, *, sampling="gps_fix",
         manifest={'schema_version':'2.0-draft','sampling':sampling,'rotation':rotation,'manual_points_added':sum(r['manual'] for r in rows),'interval':interval,'max_accuracy':max_accuracy,'max_snap_seconds':max_snap,'video_sha256':report['video']['sha256'],'gps_sha256':report['gps']['sha256'],'frame_count':len(rows),'skipped':skipped,'warnings':report['warnings']}
         (tmp/'manifest.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
         (tmp/'qa_report.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
-        with zipfile.ZipFile(tmp/'survey.zip','w',compression=zipfile.ZIP_DEFLATED) as z:
-            for f in sorted(tmp.rglob('*')):
-                if f.is_file() and f.name != 'survey.zip': z.write(f,f.relative_to(tmp).as_posix())
+        if package:
+            with zipfile.ZipFile(tmp/'survey.zip','w',compression=zipfile.ZIP_DEFLATED) as z:
+                for f in sorted(tmp.rglob('*')):
+                    if f.is_file() and f.name != 'survey.zip': z.write(f,f.relative_to(tmp).as_posix())
         checkpoint(99)
         os.rename(tmp,output)
         return manifest

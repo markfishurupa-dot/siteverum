@@ -16,11 +16,17 @@
 <aside>
   <form id="create"><label for="label">New survey</label><input id="label" required maxlength="120" placeholder="Survey name"><button>Create survey</button></form>
   <h2>Surveys</h2><ul id="catalog"></ul>
+  <footer class="sidebar-footer"><button id="about-open" aria-haspopup="dialog">About StreetView</button></footer>
 </aside>
 <section>
 <p id="message" role="status">Select or create a survey.</p>
 <div id="survey" hidden>
   <h2 id="title"></h2>
+  <div id="recording-tools" class="recording-tools" hidden>
+    <button id="add-recording">Add recording</button>
+    <label id="recording-select-label">Recording <select id="recording-select"></select></label>
+    <button id="discard-recording" hidden>Discard this addition</button>
+  </div>
   <form id="upload"><label for="files">Android ZIP or matching MP4 and LOG</label>
     <input type="file" id="files" multiple accept=".zip,.mp4,.log,.csv" required>
     <button>Upload</button> <progress id="upload-progress" max="100" hidden></progress>
@@ -46,10 +52,19 @@
       </figure>
     </div>
     <nav id="downloads" aria-label="Survey downloads"></nav>
-    <p><button id="publication"></button> <a id="published-link" hidden>Open published map</a></p>
+    <div class="publication-controls">
+      <label>Published map layers <select id="publish-layers">
+        <option value="both">Route and photo points</option>
+        <option value="route">Route only</option>
+        <option value="points">Photo points only</option>
+      </select></label>
+      <button id="publication"></button>
+      <button id="save-publication" hidden>Update published map</button>
+      <a id="published-link" hidden>Open published map</a>
+    </div>
     <details>
       <summary>Add a photo point</summary>
-      <p>Click the map to place the point, then enter its time in the source video.</p>
+      <p>Click the map to place the point, then enter its time in the first recording.</p>
       <form id="add-point">
         <label>Latitude <input id="point-lat" type="number" min="-90" max="90" step="any" required></label>
         <label>Longitude <input id="point-lon" type="number" min="-180" max="180" step="any" required></label>
@@ -63,4 +78,12 @@
 </div>
 </section>
 </main>
+<dialog id="about" aria-labelledby="about-title">
+  <div class="about-heading">
+    <div><h2 id="about-title">About StreetView</h2><p id="about-version"></p></div>
+    <form method="dialog"><button aria-label="Close About" autofocus>Close</button></form>
+  </div>
+  <p>StreetView turns GPS-tagged video into a survey map you can explore, publish locally, and export for GIS.</p>
+  <p>Designed by <a href="https://www.linkedin.com/in/mark-urupa/" target="_blank" rel="noopener noreferrer">Mark Urupa</a>.</p>
+</dialog>
 </body></html>

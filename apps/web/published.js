@@ -9,7 +9,14 @@
     const publication = "/api/v2/published" + location.pathname.replace(/\/$/, "");
     const survey = await load(publication);
     const file = name => publication + "/files/" + survey.job + "/" + name;
-    const [points, route] = await Promise.all([load(file("points.geojson")), load(file("route.geojson"))]);
+    const empty = {type: "FeatureCollection", features: []};
+    const routeOnly = survey.layers === "route";
+    const [points, route] = await Promise.all([
+      routeOnly ? empty : load(file("points.geojson")),
+      survey.layers === "points" ? empty : load(file("route.geojson"))
+    ]);
+    document.querySelector(".viewer").classList.toggle("route-only", routeOnly);
+    document.querySelector("figure").hidden = routeOnly;
     document.getElementById("title").textContent = survey.label;
     document.title = survey.label + " | StreetView";
     document.getElementById("results").hidden = false;

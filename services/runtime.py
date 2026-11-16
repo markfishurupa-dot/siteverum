@@ -26,3 +26,16 @@ def migrate():
 
 def run_path(survey: UUID, job: UUID):
     return ROOT / str(survey) / "runs" / str(job)
+
+
+def source_groups(db, survey):
+    records = db.execute(
+        """SELECT recording,kind,filename,storage,sha256,bytes FROM sources
+        WHERE survey=%s ORDER BY (recording <> 'primary'),
+        min(added_at) OVER (PARTITION BY recording), recording, kind""", (survey,),
+    )
+    groups = {}
+    for record in records:
+        recording = record.pop("recording")
+        groups.setdefault(recording, {})[record["kind"]] = record
+    return groups

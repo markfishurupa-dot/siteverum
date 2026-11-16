@@ -47,3 +47,11 @@ The shared viewer offers an optional OpenStreetMap layer. Red dots switch to bea
 Rotation is baked into exported JPEGs when a new processing run completes. Manual points supply coordinates and a source-video timestamp, with an optional bearing. They appear in the photo sequence and spatial exports, while the route follows the sampled GPS observations.
 
 The Docker/Edge test verified the layer toggle and attribution with intercepted tile requests, low/high zoom markers, viewport culling, a 90-degree JPEG rotation, addition of an eighth point from the private sample, and authenticated publication and revocation. Its source and generated exports remain outside Git. The existing published survey page was checked separately.
+
+## Multiple recordings and publication layers
+
+Version 2.0.0-alpha.3 lets users append a ZIP or an MP4/LOG pair to a completed survey. Each recording validates and extracts against its own video timeline. The combined run renumbers image paths, preserves recording provenance, and keeps routes separate. The migration preserves prior survey URLs and outputs. The publication choice persists as route only, points only, or both. The sidebar About dialog credits Mark Urupa and links to LinkedIn.
+
+The Edge test appended a privately derived second MP4/LOG recording to the original ZIP survey, verified 14 readable photo references and two independent route segments, and opened the 14-point GeoPackage with GDAL. It confirmed that the previous run's image still matched, tested all three layer choices on the same published URL, and checked the About dialog and credit link. Nine earlier catalog entries created by test runs were removed. Browser tests now use temporary names and clean up their entries.
+
+Processing rebuilds the combined run from recordings using the current survey settings. Manual photo points still reference the first recording.

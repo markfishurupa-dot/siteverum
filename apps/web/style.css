@@ -28,3 +28,15 @@ nav a { display:inline-block; margin:0 1rem .35rem 0; }
 .published figure img { height:55vh; }
 details { margin:.75rem 0; }
 @media(max-width:850px) { main,.viewer { grid-template-columns:1fr; } #map { height:270px; } }
+
+[hidden] { display: none !important; }
+aside { display: flex; flex-direction: column; }
+.sidebar-footer { margin-top: auto; padding-top: 1rem; }
+.sidebar-footer button { background: transparent; border: 0; padding: .25rem 0; color: #465d65; font-size: .82rem; text-decoration: underline; }
+.recording-tools, .publication-controls { display: flex; align-items: end; flex-wrap: wrap; gap: .65rem; margin: .75rem 0; }
+dialog { max-width: min(28rem, calc(100% - 2rem)); padding: 1.4rem; border: 1px solid #ccd7da; border-radius: 10px; color: #1b2933; }
+dialog::backdrop { background: rgb(12 32 36 / 55%); }
+.about-heading { display: flex; justify-content: space-between; align-items: start; gap: 1rem; }
+.about-heading p { margin: 0; color: #465d65; }
+.about-heading form { margin: 0; }
+.viewer.route-only { grid-template-columns: 1fr; }

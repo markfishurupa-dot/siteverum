@@ -13,7 +13,11 @@ Open [StreetView on port 18080](http://127.0.0.1:18080/). Sign in as `admin` wit
 2. Select **Validate sources**. Review GPS warnings and correct any blocking errors.
 3. Select **GPS fixes** to reproduce the sample run, or choose time or distance and set the interval. Set an accuracy threshold if needed.
 4. Select **Process survey**. When processing completes, select a map arrow or use **Previous photo** and **Next photo**. Download GIS layers individually or use `survey.zip` for relative image paths and QA files.
-5. **Publish locally** creates a separate authenticated, read-only map at the survey name URL. Use **Open published map** to open it. Unpublishing revokes that URL. The map displays the latest completed run. Restarting the stack preserves surveys, jobs and artifacts. **Delete survey** hides it and revokes access through this application. It retains original assets for the alpha.
+5. Choose **Published map layers** (route, photo points, or both). **Publish locally** creates a separate authenticated, read-only map at the survey name URL. Use **Open published map** to open it. Unpublishing revokes that URL. The map displays the latest completed run. Restarting the stack preserves surveys, jobs and artifacts. **Delete survey** hides it and revokes access through this application. It retains original assets for the alpha.
+
+To extend an existing survey, open it and choose **Add recording**. Upload another ZIP or its matching MP4 and LOG, then validate and process. Every recording keeps its own video timeline. The combined map shows separate route segments, and each photo in the combined GIS package has a unique relative path. The workspace keeps the previous completed run available while processing.
+
+Select the version in the sidebar to open **About StreetView**.
 
 The map starts on an offline backdrop. Use the Layers control to opt into OpenStreetMap, which requests tiles for the geographic area in view. Photo locations appear as dots below zoom 19 and as directional arrows in the viewport at higher zoom, where a bearing is available.
 
@@ -25,4 +29,4 @@ docker compose -f deploy/compose.yaml ps
 python -m unittest discover -s tests -v
 ```
 
-For the private browser test, install Playwright and Pyogrio in your test environment, make Edge available, set `STREETVIEW_SAMPLE_ZIP` to the original two-file ZIP, and run `python tests/compose_acceptance.py`. The test uses the local credentials and adds two surveys.
+For the private browser test, install Playwright and Pyogrio in your test environment, make Edge available, set `STREETVIEW_SAMPLE_ZIP` to the original two-file ZIP, and run `python tests/compose_acceptance.py`. The browser tests use the local credentials and remove temporary surveys from the catalog when finished. The recording acceptance test covers multiple recordings, publication layers and About.
