@@ -1,0 +1,51 @@
+name: streetview-v2-alpha
+services:
+  db:
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_DB: streetview
+      POSTGRES_USER: streetview
+      POSTGRES_PASSWORD: ${SV_DB_PASSWORD:?Set SV_DB_PASSWORD in deploy/.env}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U streetview -d streetview"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    environment: &runtime
+      PGHOST: db
+      PGDATABASE: streetview
+      PGUSER: streetview
+      PGPASSWORD: ${SV_DB_PASSWORD:?Set SV_DB_PASSWORD in deploy/.env}
+      SV_ADMIN_PASSWORD: ${SV_ADMIN_PASSWORD:?Set SV_ADMIN_PASSWORD in deploy/.env}
+      SV_MEDIA: /media/streetview
+    depends_on:
+      db: {condition: service_healthy}
+    ports:
+      - "127.0.0.1:${SV_PORT:-18080}:8000"
+    volumes:
+      - media:/media/streetview
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  worker:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    command: ["python", "services/worker.py"]
+    environment: *runtime
+    depends_on:
+      api: {condition: service_healthy}
+    volumes:
+      - media:/media/streetview
+    restart: on-failure
+volumes:
+  database:
+  media:

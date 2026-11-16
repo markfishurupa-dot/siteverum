@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StreetView</title>
+<link rel="stylesheet" href="/static/vendor/leaflet.css">
+<link rel="stylesheet" href="/static/style.css">
+<script defer src="/static/vendor/leaflet.js"></script>
+<script defer src="/static/app.js"></script>
+</head>
+<body>
+<header><h1>StreetView</h1><span>Local survey workspace</span></header>
+<main>
+<aside>
+  <form id="create"><label for="label">New survey</label><input id="label" required maxlength="120" placeholder="Survey name"><button>Create survey</button></form>
+  <h2>Surveys</h2><ul id="catalog"></ul>
+</aside>
+<section>
+<p id="message" role="status">Select or create a survey.</p>
+<div id="survey" hidden>
+  <h2 id="title"></h2>
+  <form id="upload"><label for="files">Android ZIP or matching MP4 and LOG</label>
+    <input type="file" id="files" multiple accept=".zip,.mp4,.log,.csv" required>
+    <button>Upload</button> <progress id="upload-progress" max="100" hidden></progress>
+  </form>
+  <p id="assets"></p><button id="validate">Validate sources</button>
+  <ul id="validation"></ul>
+  <form id="process">
+    <label>Sampling <select id="sampling"><option value="gps_fix">GPS fixes</option><option value="time">Time (seconds)</option><option value="distance">Distance (metres)</option></select></label>
+    <label>Interval <input id="interval" type="number" min=".1" max="10000" step="any" value="1"></label>
+    <label>Maximum GPS accuracy (m) <input id="accuracy" type="number" min=".1" max="10000" step="any" placeholder="Optional"></label>
+    <button id="start" disabled>Process survey</button>
+  </form>
+  <p id="job" aria-live="polite"></p><button id="cancel" hidden>Cancel processing</button>
+  <div id="results" hidden>
+    <div class="viewer">
+      <div id="map" aria-label="Survey map"></div>
+      <figure><img id="photo" alt="Survey photograph"><figcaption id="caption"></figcaption>
+        <button id="previous">Previous photo</button> <button id="next">Next photo</button> <a id="download-photo" download>Download photo</a>
+      </figure>
+    </div>
+    <nav id="downloads" aria-label="Survey downloads"></nav>
+    <button id="publication"></button>
+  </div>
+  <button id="delete">Delete survey</button>
+</div>
+</section>
+</main>
+</body></html>

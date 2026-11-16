@@ -29,10 +29,11 @@ import zipfile
 CORE_FIELDS = {"timestamp_utc", "video_elapsed_ms", "recording_start_utc_ms", "lat", "lon"}
 OPTIONAL_FIELDS = {"accuracy_m", "speed_mps", "bearing", "alt_m"}
 ANDROID_PATTERN = re.compile(r"^SV_\d{8}_\d{6}$")
-MAX_MEMBER = 16 * 1024 ** 3
-MAX_ARCHIVE_TOTAL = 24 * 1024 ** 3
-MAX_MEMBERS = 1000
-MAX_RATIO = 1000
+MAX_MEMBER = 1024 ** 3
+MAX_ARCHIVE_TOTAL = 1024 ** 3
+MAX_MEMBERS = 64
+MAX_RATIO = 200
+MAX_TRACK_BYTES = 16 * 1024 ** 2
 
 
 def hash_file(path: Path) -> str:
@@ -52,6 +53,9 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 def validate_log(path: Path, warnings: list[str], errors: list[str], max_accuracy_m: float) -> dict:
     result = {"file": path.name, "size_bytes": path.stat().st_size, "sha256": hash_file(path)}
+    if result["size_bytes"] > MAX_TRACK_BYTES:
+        errors.append("TRACK_UPLOAD_LIMIT")
+        return result
     try:
         # utf-8-sig handles UTF-8 BOM; newline='' preserves csv rules.
         with path.open("r", encoding="utf-8-sig", newline="") as f:
@@ -67,6 +71,9 @@ def validate_log(path: Path, warnings: list[str], errors: list[str], max_accurac
                 return result
             parsed = []
             for n, rec in enumerate(reader, start=2):
+                if n > 100002:
+                    errors.append("TRACK_ROW_LIMIT")
+                    return result
                 try:
                     if None in rec or any(not rec.get(k, "").strip() for k in CORE_FIELDS):
                         raise ValueError("wrong CSV field count or blank required value")
@@ -157,7 +164,7 @@ def validate_video(path: Path, warnings: list[str], errors: list[str], full_deco
             return result
         try:
             proc = subprocess.run([
-                "ffprobe", "-v", "error", "-show_format", "-show_streams", "-of", "json", str(path)
+                "ffprobe", "-v", "error", "-protocol_whitelist", "file", "-show_format", "-show_streams", "-of", "json", str(path)
             ], capture_output=True, text=True, timeout=60)
         except (FileNotFoundError, subprocess.TimeoutExpired) as e:
             errors.append(f"FFPROBE_NOT_AVAILABLE_OR_TIMEOUT: {e}")
@@ -178,7 +185,7 @@ def validate_video(path: Path, warnings: list[str], errors: list[str], full_deco
         if not math.isfinite(duration) or duration <= 0:
             errors.append("VIDEO_DURATION_INVALID")
         if full_decode:
-            decode = subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-xerror", "-i", str(path), "-map", "0:v:0", "-f", "null", "-"], capture_output=True, text=True, timeout=7200)
+            decode = subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-xerror", "-protocol_whitelist", "file", "-threads", "2", "-i", str(path), "-map", "0:v:0", "-f", "null", "-"], capture_output=True, text=True, timeout=7200)
             result["full_decode_passed"] = decode.returncode == 0
             if decode.returncode:
                 errors.append("VIDEO_DECODE_FAILED: " + decode.stderr[-500:])
@@ -225,9 +232,16 @@ def safe_zip_extract_pair(archive: Path, target: Path, errors: list[str]) -> tup
                     errors.append("ZIP_UNSAFE_SIZE_OR_COMPRESSION_RATIO")
                     return None, None
                 if p.suffix.lower() in (".mp4", ".log", ".csv"):
+                    if p.suffix.lower() != ".mp4" and info.file_size > MAX_TRACK_BYTES:
+                        errors.append("TRACK_UPLOAD_LIMIT")
+                        return None, None
                     candidates.append((p, info))
             if len(candidates) != 2 or sorted(p.suffix.lower() for p, _ in candidates) not in ([".log", ".mp4"], [".csv", ".mp4"]):
-                errors.append("ZIP_REQUIRES_EXACTLY_ONE_MP4_AND_ONE_LOG_OR_CSV")
+                kinds = [p.suffix.lower() == ".mp4" for p, _ in candidates]
+                if kinds.count(True) > 1 or kinds.count(False) > 1:
+                    errors.append("PAIR_AMBIGUOUS: archive contains multiple video or track candidates")
+                else:
+                    errors.append("PAIR_INCOMPLETE: archive requires one MP4 and one LOG or CSV")
                 return None, None
             if candidates[0][0].stem.lower() != candidates[1][0].stem.lower():
                 errors.append("ZIP_VIDEO_LOG_STEMS_DIFFER")
@@ -247,7 +261,7 @@ def safe_zip_extract_pair(archive: Path, target: Path, errors: list[str]) -> tup
                         dst.write(chunk)
                 outputs[p.suffix.lower()] = dest
             return outputs.get(".mp4"), outputs.get(".log") or outputs.get(".csv")
-    except (zipfile.BadZipFile, OSError, RuntimeError, EOFError) as e:
+    except (zipfile.BadZipFile, OSError, RuntimeError, EOFError, NotImplementedError) as e:
         errors.append("ZIP_ERROR: " + str(e))
         return None, None
 

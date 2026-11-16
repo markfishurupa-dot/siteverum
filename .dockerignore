@@ -1,0 +1,9 @@
+*
+!services/
+!services/**
+!apps/
+!apps/web/
+!apps/web/**
+!deploy/
+!deploy/requirements.txt
+**/__pycache__/

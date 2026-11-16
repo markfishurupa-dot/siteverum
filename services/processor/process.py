@@ -1,6 +1,7 @@
 """Local GPS-fix-aligned survey exporter. Not a job worker or upload service."""
 from __future__ import annotations
 import argparse
+from bisect import bisect_left
 import csv
 import json
 import math
@@ -12,12 +13,15 @@ import subprocess
 import tempfile
 import zipfile
 from pathlib import Path
-import preflight
+if __package__:
+    from . import preflight
+else:
+    import preflight
 
 MAX_SNAP_SECONDS = 0.10
 
 def frame_times(video):
-    proc = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0",
+    proc = subprocess.run(["ffprobe", "-v", "error", "-protocol_whitelist", "file", "-select_streams", "v:0",
         "-show_entries", "frame=best_effort_timestamp_time", "-of", "json", str(video)],
         capture_output=True, text=True, check=True, timeout=600)
     frames = json.loads(proc.stdout)["frames"]
@@ -47,7 +51,49 @@ def create_gpkg(path, rows):
         con.commit()
     finally: con.close()
 
-def run(video, log, output, max_snap=MAX_SNAP_SECONDS):
+def sampled_fixes(fixes, mode, interval, max_accuracy):
+    usable = [r for r in fixes if int(r["video_elapsed_ms"]) >= 0 and
+              (max_accuracy is None or (r.get("accuracy_m") and float(r["accuracy_m"]) <= max_accuracy))]
+    if not usable or mode == "gps_fix":
+        return usable
+    result = [usable[0]]
+    next_step = interval
+    cumulative = 0.0
+    start = int(usable[0]["video_elapsed_ms"])
+    for previous, following in zip(usable, usable[1:]):
+        a, b = int(previous["video_elapsed_ms"]), int(following["video_elapsed_ms"])
+        if mode == "time":
+            end = (b - start) / 1000
+        else:
+            end = cumulative + preflight.haversine(float(previous["lat"]), float(previous["lon"]),
+                                                  float(following["lat"]), float(following["lon"]))
+        while next_step <= end:
+            if len(result) >= 10000:
+                raise ValueError("Sampling exceeds 10,000 images")
+            fraction = (next_step - cumulative) / (end - cumulative)
+            sample = dict(previous)
+            sample["video_elapsed_ms"] = round(a + fraction * (b - a))
+            sample["interpolated"] = True
+            sample["fix_gap_ms"] = b - a
+            delta = (float(following["lon"]) - float(previous["lon"]) + 180) % 360 - 180
+            sample["lon"] = (float(previous["lon"]) + delta * fraction + 180) % 360 - 180
+            sample["lat"] = float(previous["lat"]) + fraction * (float(following["lat"]) - float(previous["lat"]))
+            # Avoid interpolating across long outages or clear position jumps.
+            distance = preflight.haversine(float(previous["lat"]), float(previous["lon"]),
+                                           float(following["lat"]), float(following["lon"]))
+            if b - a <= 10000 and distance / ((b - a) / 1000) <= 40:
+                result.append(sample)
+            else:
+                next_step = (math.floor(end / interval) + 1) * interval
+                break
+            next_step += interval
+        cumulative = end
+    return result
+
+
+def run(video, log, output, max_snap=MAX_SNAP_SECONDS, *, sampling="gps_fix",
+        interval=1, max_accuracy=None, checkpoint=lambda progress: None):
+    checkpoint(2)
     report=preflight.validate(video,log,None,20,True)
     if not report['can_process']: raise ValueError('Preflight failed: ' + ', '.join(report['errors']))
     if output.exists(): raise FileExistsError('Output already exists; choose a new run directory')
@@ -58,18 +104,29 @@ def run(video, log, output, max_snap=MAX_SNAP_SECONDS):
     try:
         (tmp/'images').mkdir()
         rows=[]; skipped=[]
-        for fix in fixes:
+        selected = sampled_fixes(fixes, sampling, interval, max_accuracy)
+        if len(selected) > 10000:
+            raise ValueError("Sampling exceeds 10,000 images")
+        used = set()
+        for position, fix in enumerate(selected):
+            checkpoint(5 + int(85 * position / len(selected)))
             ms=int(fix['video_elapsed_ms'])
             if ms < 0: continue
-            target=ms/1000
-            index=min(range(len(times)),key=lambda i:abs(times[i]-target))
+            target=ms/1000 + times[0]
+            upper = bisect_left(times, target)
+            candidates = {max(0, upper - 1), min(upper, len(times) - 1)}
+            index = min(candidates, key=lambda i: (abs(times[i] - target), i))
             delta=abs(times[index]-target)
             if delta > max_snap:
                 skipped.append({'requested_ms':ms,'reason':'NO_FRAME_WITHIN_TOLERANCE','nearest_pts':times[index]}); continue
+            if index in used:
+                skipped.append({"requested_ms":ms,"reason":"FRAME_ALREADY_SELECTED"}); continue
+            used.add(index)
             image=f"images/{len(rows):06d}.jpg"
-            subprocess.run(['ffmpeg','-nostdin','-v','error','-i',str(video),'-vf',f'select=eq(n\\,{index})','-frames:v','1','-q:v','2',str(tmp/image)],check=True,capture_output=True,timeout=300)
-            subprocess.run(['ffmpeg','-nostdin','-v','error','-xerror','-i',str(tmp/image),'-f','null','-'],check=True,capture_output=True,timeout=60)
-            rows.append({'frame_index':len(rows),'image_path':image,'requested_ms':ms,'actual_pts':times[index],'source_frame_index':index,'lat':float(fix['lat']),'lon':float(fix['lon']),'accuracy_m':fix.get('accuracy_m',''),'bearing':fix.get('bearing','')})
+            subprocess.run(['ffmpeg','-nostdin','-v','error','-xerror','-protocol_whitelist','file','-threads','2','-i',str(video),'-map','0:v:0','-vf',f'select=eq(n\\,{index})','-frames:v','1','-q:v','2',str(tmp/image)],check=True,capture_output=True,timeout=300)
+            subprocess.run(['ffmpeg','-nostdin','-v','error','-xerror','-protocol_whitelist','file','-i',str(tmp/image),'-f','null','-'],check=True,capture_output=True,timeout=60)
+            rows.append({'frame_index':len(rows),'image_path':image,'requested_ms':ms,'actual_pts':times[index],'source_frame_index':index,'lat':float(fix['lat']),'lon':float(fix['lon']),'accuracy_m':fix.get('accuracy_m',''),'bearing':fix.get('bearing',''),
+                         'interpolated':fix.get('interpolated',False),'fix_gap_ms':fix.get('fix_gap_ms',0)})
         if not rows: raise ValueError('No valid frames within tolerance')
         with (tmp/'points.csv').open('w',newline='',encoding='utf-8') as f:
             writer=csv.DictWriter(f,fieldnames=rows[0].keys());writer.writeheader();writer.writerows(rows)
@@ -78,13 +135,15 @@ def run(video, log, output, max_snap=MAX_SNAP_SECONDS):
         coords=[[r['lon'],r['lat']] for r in rows]
         route={'type':'FeatureCollection','features':([{'type':'Feature','properties':{},'geometry':{'type':'LineString','coordinates':coords}}] if len(coords)>1 else [])}
         (tmp/'route.geojson').write_text(json.dumps(route),encoding='utf-8')
+        checkpoint(92)
         create_gpkg(tmp/'points.gpkg',rows)
-        manifest={'schema_version':'2.0-draft','sampling':'gps_fix','max_snap_seconds':max_snap,'video_sha256':report['video']['sha256'],'gps_sha256':report['gps']['sha256'],'frame_count':len(rows),'skipped':skipped,'warnings':report['warnings']}
+        manifest={'schema_version':'2.0-draft','sampling':sampling,'interval':interval,'max_accuracy':max_accuracy,'max_snap_seconds':max_snap,'video_sha256':report['video']['sha256'],'gps_sha256':report['gps']['sha256'],'frame_count':len(rows),'skipped':skipped,'warnings':report['warnings']}
         (tmp/'manifest.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
         (tmp/'qa_report.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
         with zipfile.ZipFile(tmp/'survey.zip','w',compression=zipfile.ZIP_DEFLATED) as z:
             for f in sorted(tmp.rglob('*')):
                 if f.is_file() and f.name != 'survey.zip': z.write(f,f.relative_to(tmp).as_posix())
+        checkpoint(99)
         os.rename(tmp,output)
         return manifest
     except BaseException:

@@ -1,5 +1,6 @@
 import importlib.util
 import tempfile
+import stat
 import unittest
 import zipfile
 from pathlib import Path
@@ -39,6 +40,34 @@ class PreflightTests(unittest.TestCase):
             report = p.validate(None, None, archive, 20, False)
             self.assertFalse(report["can_process"])
             self.assertTrue(any("ZIP_UNSAFE_PATH" in e for e in report["errors"]))
+
+    def test_archive_ambiguity(self):
+        self.assert_archive_error(
+            [("a.mp4", b"v"), ("a.log", b"t"), ("nested/a.mp4", b"v")],
+            "PAIR_AMBIGUOUS",
+        )
+
+    def test_archive_expansion_limit(self):
+        self.assert_archive_error(
+            [("a.mp4", b"0" * 500000), ("a.log", b"track")],
+            "ZIP_UNSAFE_SIZE",
+        )
+
+    def test_archive_symlink(self):
+        info = zipfile.ZipInfo("a.mp4")
+        info.create_system = 3
+        info.external_attr = (stat.S_IFLNK | 0o777) << 16
+        self.assert_archive_error([(info, b"target"), ("a.log", b"track")], "ZIP_SYMLINK")
+
+    def assert_archive_error(self, entries, code):
+        with tempfile.TemporaryDirectory() as directory:
+            archive = Path(directory) / "survey.zip"
+            with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as output:
+                for entry, payload in entries:
+                    output.writestr(entry, payload)
+            report = p.validate(None, None, archive, 20, False)
+            self.assertFalse(report["can_process"])
+            self.assertTrue(any(error.startswith(code) for error in report["errors"]), report)
 
     def test_mismatched_basenames(self):
         with tempfile.TemporaryDirectory() as d:
