@@ -11,3 +11,11 @@ Phase 0 gate incomplete: test harness and scanning not yet established. Phases 1
 ## Preflight prototype baseline
 
 Adapted the user-supplied standalone validator into `services/processor/preflight.py`; corrected its rejection of v1.3 pre-recording rows whose start anchor is -1. It remains a CLI prototype, not a secure upload service. `python -m unittest discover -s tests -v`: 3 passed (incomplete input, traversal, mismatched stems). Real original ZIP and loose files both returned READY with full decode and identical MP4/LOG SHA-256; 2 low-accuracy fixes and 1 jump were warnings. This does not establish output equivalence, processing, or a complete security test suite. Prototype rejects archives with extra candidate pairs; support for incomplete archives, staged uploads, resource isolation, detailed error contracts and CRC/bomb test coverage remains incomplete.
+
+## GPS-fix processing slice
+
+Added local CLI `services/processor/process.py` that validates a loose pair, reads decoded frame PTS, selects the nearest frame within 100 ms, verifies JPEG decode, and writes CSV, GeoJSON points/route, a minimal GeoPackage, QA/manifest and portable ZIP into a new run directory. Previous run directories are not overwritten. GPS pre-recording rows are skipped. It currently decodes once per photo and supports only GPS-fix sampling. This is not an upload service or restart-safe job worker. It does not yet preserve raw fixes in a separate artifact or validate nonzero video start-time alignment. GeoPackage interoperability beyond SQLite structure has not yet been tested.
+
+Opt-in `tests/test_real_sample.py` safely extracts the original private sample, compares ZIP-derived and loose inputs and outputs, checks seven references/images and GeoPackage row count, verifies archive CRC and the final 7.8662 s PTS. With private sample environment variables set, `python -m unittest discover -s tests -v`: 4 tests passed. ZIP extraction in this test is internal; no upload path exists yet. No map, Docker install or publication test passed.
+
+Docker Desktop was stopped; started the installed desktop process and `docker info` now reports server 29.9.2. No Compose stack has been deployed.
