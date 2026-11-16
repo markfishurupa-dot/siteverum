@@ -1,0 +1,16 @@
+.env
+**/local.properties
+**/build/
+**/.gradle/
+**/__pycache__/
+*.pyc
+*.mp4
+*.log
+*.zip
+*.jpg
+*.jpeg
+*.jks
+*.keystore
+*.pt
+*.onnx
+private-samples/
