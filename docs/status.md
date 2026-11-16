@@ -37,4 +37,13 @@ Verification performed:
 - Inspected the built Python package license metadata and Leaflet license. Scanned the working source tree, Git index and reachable history for sensitive file types, private paths, GPS rows, credentials and configured secret values. The runtime environment and survey files remain outside tracked source.
 
 Limitations: local single-admin use, one worker, offline map without a street basemap, and soft deletion with source retention. Cancellation is checked between processing steps. Source files are preserved separately from interpolated exports. Large-survey load, clean restore to a second stack and ARM64 were not tested. See THIRD_PARTY_NOTICES.md for distribution review items.
-\n- Stopped the worker during an active distance-sampling run, started it again, and verified that the same job recovered and completed.
+
+- Stopped the worker during an active distance-sampling run, started it again, and verified that the same job recovered and completed.
+
+## Survey viewer feedback
+
+The shared viewer offers an optional OpenStreetMap layer. Red dots switch to bearing arrows at zoom 19, and high-zoom markers are limited to the viewport. The existing route remains visible. Published surveys have an authenticated read-only page at the survey slug. Unpublishing revokes the page and its artifact routes. The migration assigns slugs to existing surveys without regenerating outputs.
+
+Rotation is baked into exported JPEGs when a new processing run completes. Manual points supply coordinates and a source-video timestamp, with an optional bearing. They appear in the photo sequence and spatial exports, while the route follows the sampled GPS observations.
+
+The Docker/Edge test verified the layer toggle and attribution with intercepted tile requests, low/high zoom markers, viewport culling, a 90-degree JPEG rotation, addition of an eighth point from the private sample, and authenticated publication and revocation. Its source and generated exports remain outside Git. The existing published survey page was checked separately.

@@ -98,7 +98,7 @@ def main():
                 if output.exists():
                     shutil.rmtree(output)
                 owner.execute("UPDATE jobs SET state='failed',error=%s WHERE id=%s AND state='running'",
-                              ("No valid frames for these settings" if isinstance(error, ValueError)
+                              (str(error) if isinstance(error, ValueError)
                                else "Processing failed. Check worker logs.", row["id"]))
 
 

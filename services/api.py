@@ -6,6 +6,7 @@ import re
 import shutil
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Literal
 from uuid import UUID, uuid4
 
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -46,7 +47,7 @@ def authenticate(request: Request, credentials: HTTPBasicCredentials = Depends(b
 
 
 def survey_row(db, survey, lock=False):
-    sql = "SELECT id,label,created,validation,published FROM surveys WHERE id=%s AND NOT deleted"
+    sql = "SELECT id,label,created,validation,published,slug FROM surveys WHERE id=%s AND NOT deleted"
     row = db.execute(sql + (" FOR UPDATE" if lock else ""), (survey,)).fetchone()
     if not row:
         raise HTTPException(404, "Survey not found")
@@ -67,7 +68,16 @@ class SurveyCreate(BaseModel):
     label: str = Field(min_length=1, max_length=120)
 
 
+class ManualPoint(BaseModel):
+    video_elapsed_ms: int = Field(ge=0, le=7_200_000)
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+    bearing: float | None = Field(default=None, ge=0, lt=360)
+
+
 class Settings(BaseModel):
+    rotation: Literal[0, 90, 180, 270] = 0
+    manual_points: list[ManualPoint] = Field(default_factory=list, max_length=1000)
     sampling: str = Field(default="gps_fix", pattern="^(gps_fix|time|distance)$")
     interval: float = Field(default=1.0, ge=0.1, le=10000)
     max_accuracy: float | None = Field(default=None, gt=0, le=10000)
@@ -95,7 +105,13 @@ def catalog():
 def create(data: SurveyCreate):
     survey = uuid4()
     with connect() as db:
-        db.execute("INSERT INTO surveys (id,label) VALUES (%s,%s)", (survey, data.label))
+        slug = re.sub(r"[^A-Za-z0-9_-]+", "-", data.label).strip("-") or "survey"
+        db.execute("SELECT pg_advisory_xact_lock(183003)")
+        if slug.lower() in {"api", "static", "health"} or db.execute(
+            "SELECT 1 FROM surveys WHERE lower(slug)=lower(%s)", (slug,)
+        ).fetchone():
+            slug += f"~{survey}"
+        db.execute("INSERT INTO surveys (id,label,slug) VALUES (%s,%s,%s)", (survey, data.label, slug))
     return {"id": survey}
 
 
@@ -195,13 +211,25 @@ def enqueue(survey: UUID, settings: Settings):
             raise HTTPException(409, "Validate a complete input pair first")
         rows = sources(db, survey)
         config = settings.model_dump()
+        duration_ms = row["validation"]["video"]["duration_seconds"] * 1000
+        if any(point.video_elapsed_ms > duration_ms for point in settings.manual_points):
+            raise HTTPException(422, "A photo point is beyond the end of the video")
+        # Cache compatibility with completed jobs created before these settings existed.
+        if not config["rotation"]:
+            config.pop("rotation")
+        if not config["manual_points"]:
+            config.pop("manual_points")
         fingerprint = hashlib.sha256(json.dumps([rows, config], sort_keys=True).encode()).hexdigest()
         existing = db.execute(
             """SELECT id,state FROM jobs WHERE survey=%s AND fingerprint=%s
             AND state IN ('queued','running','completed') ORDER BY created DESC LIMIT 1""",
             (survey, fingerprint),
         ).fetchone()
-        if existing:
+        latest = db.execute(
+            "SELECT id FROM jobs WHERE survey=%s AND state='completed' ORDER BY created DESC LIMIT 1",
+            (survey,),
+        ).fetchone()
+        if existing and (existing["state"] != "completed" or existing["id"] == latest["id"]):
             return existing
         idle(db, survey)
         job = uuid4()
@@ -261,4 +289,37 @@ def artifact(survey: UUID, job: UUID, filename: str):
     return FileResponse(path, headers={"Cache-Control": "private, no-store"})
 
 
+def published_run(slug):
+    with connect() as db:
+        row = db.execute(
+            """SELECT s.label, s.id AS survey, j.id AS job
+            FROM surveys s JOIN jobs j ON j.survey=s.id
+            WHERE lower(s.slug)=lower(%s) AND s.published AND NOT s.deleted AND j.state='completed'
+            ORDER BY j.created DESC LIMIT 1""", (slug,),
+        ).fetchone()
+    if not row:
+        raise HTTPException(404, "Published survey not found")
+    return row
+
+
+@app.get("/api/v2/published/{slug}", dependencies=[Depends(authenticate)])
+def publication(slug: str):
+    row = published_run(slug)
+    return {"label": row["label"], "job": row["job"]}
+
+
+@app.get("/api/v2/published/{slug}/files/{job}/{filename:path}", dependencies=[Depends(authenticate)])
+def published_file(slug: str, job: UUID, filename: str):
+    row = published_run(slug)
+    if row["job"] != job:
+        raise HTTPException(404, "Reload the survey map for the latest run")
+    return artifact(row["survey"], job, filename)
+
+
 app.mount("/static", StaticFiles(directory=WEB), name="static")
+
+
+@app.get("/{slug}", dependencies=[Depends(authenticate)])
+def published_page(slug: str):
+    published_run(slug)
+    return FileResponse(WEB / "published.html", headers={"Cache-Control": "private, no-store"})

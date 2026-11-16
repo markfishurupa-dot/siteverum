@@ -13,9 +13,11 @@ Open [StreetView on port 18080](http://127.0.0.1:18080/). Sign in as `admin` wit
 2. Select **Validate sources**. Review GPS warnings and correct any blocking errors.
 3. Select **GPS fixes** to reproduce the sample run, or choose time or distance and set the interval. Set an accuracy threshold if needed.
 4. Select **Process survey**. When processing completes, select a map arrow or use **Previous photo** and **Next photo**. Download GIS layers individually or use `survey.zip` for relative image paths and QA files.
-5. **Publish locally** marks the survey in the authenticated catalog. Restarting the stack preserves surveys, jobs and artifacts. **Delete survey** hides it and revokes access through this application. It retains original assets for the alpha.
+5. **Publish locally** creates a separate authenticated, read-only map at the survey name URL. Use **Open published map** to open it. Unpublishing revokes that URL. The map displays the latest completed run. Restarting the stack preserves surveys, jobs and artifacts. **Delete survey** hides it and revokes access through this application. It retains original assets for the alpha.
 
-The map draws survey geometry on an offline backdrop. Processing uses one worker. The Linux amd64 deployment is the test target. See [status](docs/status.md) for acceptance evidence.
+The map starts on an offline backdrop. Use the Layers control to opt into OpenStreetMap, which requests tiles for the geographic area in view. Photo locations appear as dots below zoom 19 and as directional arrows in the viewport at higher zoom, where a bearing is available.
+
+Select **Rotate exported photos** and process again to bake the rotation into all JPEGs in a new run. To add a photo point, expand **Add a photo point**, click the map or enter coordinates, supply a timestamp from the source video, and submit. The new run retains existing points and includes the added photo in GIS exports. The route line follows the sampled GPS track. Processing uses one worker. The Linux amd64 deployment is the test target. See [status](docs/status.md) for acceptance evidence.
 
 ```powershell
 docker compose -f deploy/compose.yaml restart

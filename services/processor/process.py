@@ -92,7 +92,7 @@ def sampled_fixes(fixes, mode, interval, max_accuracy):
 
 
 def run(video, log, output, max_snap=MAX_SNAP_SECONDS, *, sampling="gps_fix",
-        interval=1, max_accuracy=None, checkpoint=lambda progress: None):
+        interval=1, max_accuracy=None, rotation=0, manual_points=(), checkpoint=lambda progress: None):
     checkpoint(2)
     report=preflight.validate(video,log,None,20,True)
     if not report['can_process']: raise ValueError('Preflight failed: ' + ', '.join(report['errors']))
@@ -105,6 +105,12 @@ def run(video, log, output, max_snap=MAX_SNAP_SECONDS, *, sampling="gps_fix",
         (tmp/'images').mkdir()
         rows=[]; skipped=[]
         selected = sampled_fixes(fixes, sampling, interval, max_accuracy)
+        selected = sorted(
+            [*selected, *({**point, "manual": True} for point in manual_points)],
+            key=lambda point: int(point["video_elapsed_ms"]),
+        )
+        rotation_filter = {0: "", 90: ",transpose=clock", 180: ",hflip,vflip",
+                           270: ",transpose=cclock"}[rotation]
         if len(selected) > 10000:
             raise ValueError("Sampling exceeds 10,000 images")
         used = set()
@@ -118,26 +124,29 @@ def run(video, log, output, max_snap=MAX_SNAP_SECONDS, *, sampling="gps_fix",
             index = min(candidates, key=lambda i: (abs(times[i] - target), i))
             delta=abs(times[index]-target)
             if delta > max_snap:
+                if fix.get("manual"):
+                    raise ValueError(f"No video frame within {max_snap * 1000:.0f} ms of {ms / 1000:g} s")
                 skipped.append({'requested_ms':ms,'reason':'NO_FRAME_WITHIN_TOLERANCE','nearest_pts':times[index]}); continue
-            if index in used:
+            if index in used and not fix.get("manual"):
                 skipped.append({"requested_ms":ms,"reason":"FRAME_ALREADY_SELECTED"}); continue
-            used.add(index)
+            if not fix.get("manual"):
+                used.add(index)
             image=f"images/{len(rows):06d}.jpg"
-            subprocess.run(['ffmpeg','-nostdin','-v','error','-xerror','-protocol_whitelist','file','-threads','2','-i',str(video),'-map','0:v:0','-vf',f'select=eq(n\\,{index})','-frames:v','1','-q:v','2',str(tmp/image)],check=True,capture_output=True,timeout=300)
+            subprocess.run(['ffmpeg','-nostdin','-v','error','-xerror','-protocol_whitelist','file','-threads','2','-i',str(video),'-map','0:v:0','-vf',f'select=eq(n\\,{index}){rotation_filter}','-frames:v','1','-q:v','2',str(tmp/image)],check=True,capture_output=True,timeout=300)
             subprocess.run(['ffmpeg','-nostdin','-v','error','-xerror','-protocol_whitelist','file','-i',str(tmp/image),'-f','null','-'],check=True,capture_output=True,timeout=60)
             rows.append({'frame_index':len(rows),'image_path':image,'requested_ms':ms,'actual_pts':times[index],'source_frame_index':index,'lat':float(fix['lat']),'lon':float(fix['lon']),'accuracy_m':fix.get('accuracy_m',''),'bearing':fix.get('bearing',''),
-                         'interpolated':fix.get('interpolated',False),'fix_gap_ms':fix.get('fix_gap_ms',0)})
+                         'manual':fix.get('manual',False),'interpolated':fix.get('interpolated',False),'fix_gap_ms':fix.get('fix_gap_ms',0)})
         if not rows: raise ValueError('No valid frames within tolerance')
         with (tmp/'points.csv').open('w',newline='',encoding='utf-8') as f:
             writer=csv.DictWriter(f,fieldnames=rows[0].keys());writer.writeheader();writer.writerows(rows)
         features=[{'type':'Feature','geometry':{'type':'Point','coordinates':[r['lon'],r['lat']]},'properties':{k:v for k,v in r.items() if k not in ('lon','lat')}} for r in rows]
         (tmp/'points.geojson').write_text(json.dumps({'type':'FeatureCollection','features':features}),encoding='utf-8')
-        coords=[[r['lon'],r['lat']] for r in rows]
+        coords=[[r['lon'],r['lat']] for r in rows if not r['manual']]
         route={'type':'FeatureCollection','features':([{'type':'Feature','properties':{},'geometry':{'type':'LineString','coordinates':coords}}] if len(coords)>1 else [])}
         (tmp/'route.geojson').write_text(json.dumps(route),encoding='utf-8')
         checkpoint(92)
         create_gpkg(tmp/'points.gpkg',rows)
-        manifest={'schema_version':'2.0-draft','sampling':sampling,'interval':interval,'max_accuracy':max_accuracy,'max_snap_seconds':max_snap,'video_sha256':report['video']['sha256'],'gps_sha256':report['gps']['sha256'],'frame_count':len(rows),'skipped':skipped,'warnings':report['warnings']}
+        manifest={'schema_version':'2.0-draft','sampling':sampling,'rotation':rotation,'manual_points_added':sum(r['manual'] for r in rows),'interval':interval,'max_accuracy':max_accuracy,'max_snap_seconds':max_snap,'video_sha256':report['video']['sha256'],'gps_sha256':report['gps']['sha256'],'frame_count':len(rows),'skipped':skipped,'warnings':report['warnings']}
         (tmp/'manifest.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
         (tmp/'qa_report.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
         with zipfile.ZipFile(tmp/'survey.zip','w',compression=zipfile.ZIP_DEFLATED) as z:
