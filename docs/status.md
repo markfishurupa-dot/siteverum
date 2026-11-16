@@ -23,3 +23,17 @@ Docker Desktop was stopped; started the installed desktop process and `docker in
 ## Preflight robustness
 
 Added regression checks for legitimate pre-recording rows and extreme timestamp values. The latter now returns a validation error instead of raising an uncaught exception. `python -m unittest discover -s tests -v` passed 5 synthetic tests, with the private sample test skipped when its environment variables were absent. Full-history limited-pattern scan found no matching secrets or prohibited file extensions; it is not a complete security or license audit. The remote remains private and the branch has not been pushed.
+
+## Integrated private alpha
+
+The Compose stack runs on Linux amd64 through Docker Desktop at http://127.0.0.1:18080/. The API serves the Leaflet frontend and authenticated media. PostGIS stores surveys, staged source metadata, durable jobs, geometries and artifact metadata. A single worker claims PostgreSQL jobs, writes to private media storage and can requeue interrupted runs. Uploads stream to disk and use SHA-256 for duplicate recognition. The two source modes share preflight and processing logic.
+
+Verification performed:
+
+- Nine Python tests passed with the private fixture configured, including ambiguity, path traversal, symlink, archive expansion and ZIP-extracted/loose processing.
+- The Playwright Edge test drove ZIP and separate LOG-first uploads through the browser, confirmed validation warnings and all seven navigable map photos, and downloaded both packages. GeoJSON points and routes and individual JPEG hashes matched. The final 7.872 s fix selected the 7.8662 s frame.
+- Pyogrio/GDAL opened the downloaded GeoPackages and reported seven EPSG:4326 point features in each. The bundle checks covered CSV coordinate agreement, image references and ZIP CRC.
+- Integration checks passed for anonymous access rejection, local publication and unpublication, traversal, damaged archive rejection, incomplete pair gating, Compose restart persistence, identical settings reuse, queued cancellation and a time-interval retry.
+- Inspected the built Python package license metadata and Leaflet license. Scanned the working source tree, Git index and reachable history for sensitive file types, private paths, GPS rows, credentials and configured secret values. The runtime environment and survey files remain outside tracked source.
+
+Limitations: local single-admin use, one worker, offline map without a street basemap, and soft deletion with source retention. Cancellation is checked between processing steps. Source files are preserved separately from interpolated exports. Large-survey load, clean restore to a second stack and ARM64 were not tested. See THIRD_PARTY_NOTICES.md for distribution review items.
