@@ -37,3 +37,4 @@ Verification performed:
 - Inspected the built Python package license metadata and Leaflet license. Scanned the working source tree, Git index and reachable history for sensitive file types, private paths, GPS rows, credentials and configured secret values. The runtime environment and survey files remain outside tracked source.
 
 Limitations: local single-admin use, one worker, offline map without a street basemap, and soft deletion with source retention. Cancellation is checked between processing steps. Source files are preserved separately from interpolated exports. Large-survey load, clean restore to a second stack and ARM64 were not tested. See THIRD_PARTY_NOTICES.md for distribution review items.
+\n- Stopped the worker during an active distance-sampling run, started it again, and verified that the same job recovered and completed.
