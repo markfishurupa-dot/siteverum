@@ -16,6 +16,15 @@
 - [x] Actual portal screenshots were captured using synthetic test input.
 - [x] Earlier targeted scans, including Gitleaks against reachable commits at that time, reported no secrets. **This does not close the complete privacy and redistribution audit.**
 
+## APK candidate inspection (2026-11-17)
+
+- [x] Owner-provided Android 1.3.0 APK has been inspected: matching package/version/SDK metadata, valid v2 signing signature and verified content digest; SHA-256 `e0538baafce11915f1a332180ab4adcfefb7bbb6be34921a18e34fcd0ebc3aa1`.
+- [x] The signing certificate states `CN=Mark URUPA`, certificate SHA-256 `659d32a0437090e65c6a7e0c7e749615ebfae3c84c69d4cd39843b4eb1a0a741`.
+- [ ] Independently tie the **exact APK SHA-256** to field-device testing; verify old-device signing upgrade compatibility. The binary has **not** been attached to a published GitHub release.
+- [ ] Run Android SDK `apksigner verify` on the distributed APK and recheck the download hash.
+
+See [APK candidate evidence](apk-v1.3.0-verification.md) and [draft release notes](releases/v2.0.0-alpha.6.md).
+
 ## Blockers for a distributable release
 
 - [ ] **Android signed APK:** identify the exact existing release-signed binary, source revision, SHA-256, package identity, version, and signing-certificate fingerprint.
