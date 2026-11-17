@@ -1,4 +1,12 @@
-# StreetView 2.0 private alpha
+# StreetView 2.0
+
+Turn road survey video and GPS tracks into georeferenced photographs, GIS layers, and a map you can explore. StreetView is a self-hosted alpha designed by Mark Urupa and licensed under AGPL-3.0-only.
+
+Record on Android, export the recording, upload it to the portal, validate and process it, then review the map or export the results for GIS software. The portal supports multiple recordings, photo rotation, point corrections, route and photo layers, and read-only published survey maps.
+
+The Android capture source is in [apps/android](apps/android). The verified portal deployment target is Docker Desktop with Linux amd64 containers. Android builds and public distribution are still being verified. The application currently supports one administrator and one processing worker.
+
+## Install and use the portal
 
 Run from this checkout in PowerShell with Docker Desktop using Linux containers. On a new checkout, create the local configuration once.
 
