@@ -22,7 +22,7 @@
 - [x] The signing certificate states `CN=Mark URUPA`, certificate SHA-256 `659d32a0437090e65c6a7e0c7e749615ebfae3c84c69d4cd39843b4eb1a0a741`.
 - [x] The published GitHub prerelease contains `StreetView.apk` (13,406,645 bytes); GitHub reports SHA-256 `e0538baafce11915f1a332180ab4adcfefb7bbb6be34921a18e34fcd0ebc3aa1`, an exact match to the inspected APK.
 - [ ] Independently tie the **exact APK SHA-256** to field-device testing and verify old-device signing upgrade compatibility.
-- [ ] Run Android SDK `apksigner verify` on the distributed APK and recheck the download hash.
+- [x] Android SDK Build Tools 36.0.0 `apksigner` verified the downloaded APK's v2 signature and signer certificate; its SHA-256 matched the release asset digest. See [APK evidence](apk-v1.3.0-verification.md).
 
 See [APK candidate evidence](apk-v1.3.0-verification.md) and [published prerelease notes](releases/v2.0.0-alpha.6.md).
 
