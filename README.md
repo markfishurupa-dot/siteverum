@@ -10,10 +10,12 @@ Capture on Android → Upload → Process → Explore → Export
 
 Create self-hosted surveys from video and GPS, review photos on a map, correct positions and bearings, and export GIS layers. Published maps can be restricted to the administrator or made available to visitors who can reach your server.
 
-- [Installation and user guide](site/src/content/docs/start/install.md)
-- [Visual survey tutorial](site/src/content/docs/guide/workflow.md)
-- [Android capture app](apps/android/README.md)
-- [Interactive demo](https://markfishurupa-dot.github.io/streetview-v2/demo/)
+> **Designed for remote access to project areas.** StreetView helps teams collect and revisit field information for surveys and planning at different project stages, including construction supervision.
+
+- [Capture source data with the Android app](site/src/content/docs/start/android.md)
+- [Install the StreetView processing portal](site/src/content/docs/start/install.md)
+- [Process, review and publish a survey](site/src/content/docs/guide/workflow.md)
+- [Explore an interactive survey map](https://markfishurupa-dot.github.io/streetview-v2/demo/)
 - [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [License](LICENSE)
 
 To preview the documentation and demo locally, install Node.js 24, run `npm ci --prefix site` followed by `npm run dev --prefix site`, and open the local address printed by Astro.

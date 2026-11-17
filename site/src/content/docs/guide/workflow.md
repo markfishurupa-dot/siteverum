@@ -24,11 +24,11 @@ title: Process a survey
 
 7. Select a point, choose **Edit**, then enter coordinates and bearing or drag the handle. Save the change or cancel by closing the popup.
 
-   ![Point editor with latitude, longitude and bearing controls](https://raw.githubusercontent.com/markfishurupa-dot/streetview-v2/codex/alpha-implementation/site/public/images/screenshots/edit.png)
+   ![Point editor in the survey workspace](https://raw.githubusercontent.com/markfishurupa-dot/streetview-v2/codex/alpha-implementation/site/public/images/screenshots/publish.png)
 
 8. Download the GeoPackage, GeoJSON, CSV, or complete survey ZIP from the links below the map. For a read-only map, select publication layers and a default basemap, then choose **Publish locally**.
 
-   ![Survey export links and publication controls](https://raw.githubusercontent.com/markfishurupa-dot/streetview-v2/codex/alpha-implementation/site/public/images/screenshots/publish.png)
+   ![Survey export links and publication controls highlighted with red arrows](https://raw.githubusercontent.com/markfishurupa-dot/streetview-v2/codex/alpha-implementation/site/public/images/screenshots/publication-controls.png)
 
 These screenshots show the actual portal using a generated street image and invented coordinates. They do not show a real survey.
 
