@@ -81,3 +81,11 @@ Local Docker benchmark, with the same recordings, rotation settings, and direct 
 Version 2.0.0-alpha.6 saves access and basemap choices for each publication. Existing maps require admin credentials and open with Survey only. Public maps serve their selected layers and photos without credentials. The workspace, survey management, and export bundles remain admin only.
 
 The isolated Compose stack applied the migration. A temporary synthetic survey verified anonymous access to map pages, selected layers and photos, the saved OpenStreetMap preference, access denial for admin endpoints and export bundles, and revocation after switching to private or unpublishing.
+
+## Public release preparation in progress
+
+The Android 1.3.0 project was copied from the owner's local Android Studio project without its keystore, APK or local configuration. `assembleDebug` succeeded locally with Android Studio's JDK and SDK. Source inspection found video recording, GPS log fields matching the portal contract, ZIP export, and sharing of paired files. Physical-device recording and sharing have not been verified, nor has signed release provenance or update compatibility.
+
+The initial Starlight documentation builds locally. Starlight 0.43.1 and Astro 7.4.12 replaced an older version after an npm audit reported vulnerabilities; the resulting npm audit reports zero known vulnerabilities at the time of review. Candidate comparison: withastro/starlight (MIT, default branch commit 2026-11-17) provides the requested documentation integration; squidfunk/mkdocs-material (MIT, default branch commit 2026-11-07) is an alternative Python-based documentation engine. No external project code was copied.
+
+The Python suite passed 11 tests with the private-sample test skipped. Android and documentation GitHub Actions are prepared but have not yet been verified on GitHub. The release checklist records outstanding launch gates, including the demo, screenshots, installation validation, privacy and distribution review. This branch is not yet a complete public release candidate.
