@@ -2,6 +2,8 @@
 
 ## Final release audit in progress
 
+On 17 November 2026, the owner reported testing all components, including the mobile app, and that everything worked as expected. Device details and the tested APK digest were not specified.
+
 On 17 November 2026, the signed alpha.6 APK was downloaded from GitHub and its SHA-256 matched the release asset. Android SDK Build Tools 36.0.0 `apksigner` verified its v2 signature and signer certificate; `aapt` confirmed the package, version and SDK values. See [APK verification](apk-v1.3.0-verification.md). The current Python suite passed 11 tests with the private-sample test skipped; JavaScript syntax checks, the documentation build and six desktop/mobile Playwright checks passed. The [final audit](release-final-audit.md) records remaining privacy, device, installation, backup and distribution work. The next release should remain an alpha until those gates are met.
 
 ## Baseline, 2026-11-16

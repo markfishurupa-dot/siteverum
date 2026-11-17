@@ -5,7 +5,7 @@ Audit date: 17 November 2026. This report tracks the public alpha and outstandin
 | Severity | Location | Finding and action | Evidence |
 | --- | --- | --- | --- |
 | High | `site/public/demo/` | The public demo contains real locations, people and vehicle details. Obtain confirmation of dataset rights and complete a frame-by-frame privacy review. | The published dataset has 183 photos; its license does not grant general reuse. |
-| High | `docs/public-release-checklist.md` | Verify physical-device operation of the exact published APK and compatibility with earlier signing keys. | Asset digest matches and signature verifies; field-device evidence remains absent. |
+| High | `docs/public-release-checklist.md` | Associate the owner's successful mobile-app test with the exact published APK and verify compatibility with earlier signing keys. | The owner reports that all components, including the mobile app, worked as expected; the tested APK digest and device details were not specified. |
 | High | `deploy/`, `THIRD_PARTY_NOTICES.md` | Complete container redistribution, dependency and backup/restore review before a new stable release or GHCR publication. | Existing notices identify unresolved FFmpeg, PostGIS and transitive obligations. |
 | Medium | `docs/release-notes-alpha.md` | Historical text incorrectly stated that no public release existed and the demo was synthetic. Corrected. | GitHub alpha.6 release and public Pages demo. |
 | Medium | `docs/apk-v1.3.0-verification.md` | Official Android SDK signature verification was missing. Completed and recorded. | Build Tools 36.0.0 `apksigner` and `aapt` checked the downloaded asset. |
