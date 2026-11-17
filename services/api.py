@@ -106,6 +106,11 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/license")
+def license_text():
+    return FileResponse(WEB.parents[1] / "LICENSE", media_type="text/plain; charset=utf-8")
+
+
 @app.get("/", dependencies=[Depends(authenticate)])
 def index():
     return FileResponse(WEB / "index.html", headers={"Cache-Control": "no-store"})

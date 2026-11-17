@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -r
 WORKDIR /app
 COPY deploy/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+COPY LICENSE /app/LICENSE
 COPY services/ services/
 COPY apps/web/ apps/web/
 COPY --from=leaflet /tmp/vendor/package/dist/ apps/web/vendor/

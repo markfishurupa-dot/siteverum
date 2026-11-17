@@ -30,3 +30,7 @@ python -m unittest discover -s tests -v
 ```
 
 For the private browser test, install Playwright and Pyogrio in your test environment, make Edge available, set `STREETVIEW_SAMPLE_ZIP` to the original two-file ZIP, and run `python tests/compose_acceptance.py`. The browser tests use the local credentials and remove temporary surveys from the catalog when finished. The recording acceptance test covers multiple recordings, publication layers and About.
+
+## License
+
+Copyright 2026 Mark Urupa. StreetView source is licensed under the [GNU Affero General Public License version 3 only](LICENSE). Preserve copyright and license notices when redistributing. Modified versions used over a network must offer their corresponding source to users under the license terms. Commercial use and sale are permitted under those terms. Third-party components have their own licenses, as described in [third-party notices](THIRD_PARTY_NOTICES.md).
