@@ -45,7 +45,7 @@ On Linux, the repository also includes `bash ./setup.sh`; native-Linux clean-ins
 
 ## Capture and process your first survey
 
-1. **Android app:** Follow the [Android capture guide](https://markfishurupa-dot.github.io/streetview-v2/start/android/). The Android 1.3.0 **source** is available in [`apps/android`](apps/android). A publicly downloadable, signed release APK is **not yet attached to a GitHub Release**. See [Android release verification](docs/android-release-verification.md).
+1. **Android app:** Follow the [Android capture guide](https://markfishurupa-dot.github.io/streetview-v2/start/android/). The Android 1.3.0 **source** is available in [`apps/android`](apps/android). The signed Android 1.3.0 APK is available in the [v2.0.0-alpha.6 GitHub prerelease](https://github.com/markfishurupa-dot/streetview-v2/releases/tag/v2.0.0-alpha.6). **[Download StreetView.apk](https://github.com/markfishurupa-dot/streetview-v2/releases/download/v2.0.0-alpha.6/StreetView.apk)**, then follow the [Android installation and capture guide](https://markfishurupa-dot.github.io/streetview-v2/start/android/). Check the [verified SHA-256 digest](docs/apk-v1.3.0-verification.md) before installing.
 2. **Record and transfer:** Capture a survey and share its ZIP, or the matching MP4 and LOG with identical basenames.
 3. **Create and upload:** In the portal, create a survey, then upload the source files. The two files can also be uploaded at different times.
 4. **Validate and process:** Review the GPS report; choose GPS-fix, time, or distance sampling; start processing.
@@ -60,12 +60,13 @@ Follow the [illustrated first-survey walkthrough](https://markfishurupa-dot.gith
 | --- | --- |
 | [Live demo](https://markfishurupa-dot.github.io/streetview-v2/demo/) | Explore a sample route and photos without installation |
 | [Installation](https://markfishurupa-dot.github.io/streetview-v2/start/install/) | Windows, Linux, credentials, Docker troubleshooting |
-| [Android guide](https://markfishurupa-dot.github.io/streetview-v2/start/android/) | Record and export a survey |
+| [Android APK - 1.3.0](https://github.com/markfishurupa-dot/streetview-v2/releases/download/v2.0.0-alpha.6/StreetView.apk) | Download the signed Android capture app |
+| [Android guide](https://markfishurupa-dot.github.io/streetview-v2/start/android/) | Install, record and export a survey |
 | [Publishing](https://markfishurupa-dot.github.io/streetview-v2/guide/publishing/) | Read-only access, authentication, and network exposure |
 | [Development guide](https://markfishurupa-dot.github.io/streetview-v2/reference/development/) | Local tests, API and architecture |
 | [Release checklist](docs/public-release-checklist.md) | Verified features and remaining acceptance items |
 
-**Current maturity:** Public source and demo with alpha-level limitations. No stable GitHub Release, signed Android release APK, or published container image has been verified. A future optional ML/YOLO workflow is not part of this release.
+**Current maturity:** The [v2.0.0-alpha.6 prerelease](https://github.com/markfishurupa-dot/streetview-v2/releases/tag/v2.0.0-alpha.6) includes a signed Android 1.3.0 APK; the asset checksum matches the independently inspected APK. It remains an alpha, not a stable release. No prebuilt GHCR portal image has been verified. A future optional ML/YOLO workflow is not part of this release.
 
 **Privacy:** Survey photographs and GPS tracks can contain personal and sensitive location information. Obtain appropriate permission before recording and sharing. The [public demo dataset](site/public/demo/DATASET_LICENSE.md) has separate data-use terms from the software license.
 

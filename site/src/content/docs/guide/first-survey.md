@@ -6,7 +6,7 @@ description: A beginner's walkthrough from Android recording to an interactive m
 This guide takes you from an Android recording to georeferenced photographs and downloadable GIS files. The images show the **real StreetView portal with synthetic test data**, so you can recognize the same controls on your own installation.
 
 :::note[Before you begin]
-You need a running [StreetView portal](/streetview-v2/start/install/) and a matching **MP4 video + GPS LOG**, or the **ZIP** exported by the Android app. The current Android source can be built locally; a signed public APK has not been released yet.
+You need a running [StreetView portal](/streetview-v2/start/install/) and a matching **MP4 video + GPS LOG**, or the **ZIP** exported by the Android app. The Android source is available, and a [signed Android 1.3.0 APK is available from the official alpha.6 prerelease](https://github.com/markfishurupa-dot/streetview-v2/releases/download/v2.0.0-alpha.6/StreetView.apk).
 :::
 
 ## 1. Record and transfer the survey

@@ -2,7 +2,7 @@
 
 **Scope:** This checklist governs a **versioned public release with installable assets**, not whether the source repository is visible.
 
-**Current state (17 November 2026):** The repository and GitHub Pages documentation/demo are already **public**. The portal has a locally tested Docker deployment and the Android source builds in CI. There is **no formal GitHub Release, publicly distributed signed Android APK, or approved GHCR container release**. Do not equate public source visibility with completed release acceptance.
+**Current state (17 November 2026):** The repository, GitHub Pages documentation/demo, and [v2.0.0-alpha.6 GitHub prerelease](https://github.com/markfishurupa-dot/streetview-v2/releases/tag/v2.0.0-alpha.6) are **public**. The published release includes the signed Android 1.3.0 APK and a matching SHA-256 digest. Portal source builds through Docker Compose; no approved GHCR container image has been published. A published prerelease does **not** close the outstanding device, data privacy, licensing and recovery acceptance gates.
 
 ## Verified or implemented
 
@@ -20,14 +20,15 @@
 
 - [x] Owner-provided Android 1.3.0 APK has been inspected: matching package/version/SDK metadata, valid v2 signing signature and verified content digest; SHA-256 `e0538baafce11915f1a332180ab4adcfefb7bbb6be34921a18e34fcd0ebc3aa1`.
 - [x] The signing certificate states `CN=Mark URUPA`, certificate SHA-256 `659d32a0437090e65c6a7e0c7e749615ebfae3c84c69d4cd39843b4eb1a0a741`.
-- [ ] Independently tie the **exact APK SHA-256** to field-device testing; verify old-device signing upgrade compatibility. The binary has **not** been attached to a published GitHub release.
+- [x] The published GitHub prerelease contains `StreetView.apk` (13,406,645 bytes); GitHub reports SHA-256 `e0538baafce11915f1a332180ab4adcfefb7bbb6be34921a18e34fcd0ebc3aa1`, an exact match to the inspected APK.
+- [ ] Independently tie the **exact APK SHA-256** to field-device testing and verify old-device signing upgrade compatibility.
 - [ ] Run Android SDK `apksigner verify` on the distributed APK and recheck the download hash.
 
-See [APK candidate evidence](apk-v1.3.0-verification.md) and [draft release notes](releases/v2.0.0-alpha.6.md).
+See [APK candidate evidence](apk-v1.3.0-verification.md) and [published prerelease notes](releases/v2.0.0-alpha.6.md).
 
 ## Blockers for a distributable release
 
-- [ ] **Android signed APK:** identify the exact existing release-signed binary, source revision, SHA-256, package identity, version, and signing-certificate fingerprint.
+- [x] **Android signed APK:** owner-supplied release APK published, SHA-256 and signing certificate checked, package/version metadata compared to repository source. Exact source commit provenance still requires confirmation.
 - [ ] **Android field acceptance:** provide device/version details and a test report tied to that exact APK digest, including recording, GPS logging, separate sharing, ZIP export and portal import.
 - [ ] **Android upgrade path:** verify whether the signed APK upgrades existing installations without certificate or package-ID conflicts.
 - [ ] **Demo imagery and route:** review the public **real** 183-photo survey for faces, plates, location sensitivity, permissions and redistribution terms. The [demo dataset license](../site/public/demo/DATASET_LICENSE.md) does **not** currently grant general reuse rights.
@@ -35,7 +36,8 @@ See [APK candidate evidence](apk-v1.3.0-verification.md) and [draft release note
 - [ ] **Distribution license review:** audit all relevant container/base-image, FFmpeg, PostGIS, Python, Android and other transitive obligations and notices.
 - [ ] **Security/privacy audit:** scan all reachable Git history, CI artifacts and container layers for credentials and private media; document findings and remedies.
 - [ ] **Branding:** resolve product-name/trademark considerations before promoting a versioned release.
-- [ ] **Public install assets:** prepare and verify an approved tagged release, signed APK, hashes, and any versioned GHCR images before linking downloads.
+- [x] **Public Android release asset:** `v2.0.0-alpha.6` is published as a prerelease with an uploaded, digest-matched signed APK.
+- [ ] **Docker distribution:** prebuilt versioned GHCR images remain to be reviewed, published and verified; the source-build Compose installation is available now.
 - [ ] **Final quality gate:** test documentation links, mobile/desktop demo, accessibility, Docker instructions, fresh install and upgrade instructions.
 - [ ] **Owner release sign-off:** approve the exact release commit, APK checksum, container digests and publishing actions.
 
@@ -44,7 +46,7 @@ See [APK candidate evidence](apk-v1.3.0-verification.md) and [draft release note
 - **Source code:** public now, under AGPL-3.0-only.
 - **Documentation/demo:** public now; the demo uses real survey images and coordinates, so data privacy and reuse rights still require explicit confirmation.
 - **Portal:** can be built and run locally using the repository's Docker Compose file. Its default API binding is loopback-only.
-- **Android:** source and debug-build capability are present, but a downloadable release-signed APK and corresponding public device-test evidence are not available from this repository.
+- **Android:** signed Android 1.3.0 APK is downloadable from the official prerelease; source and debug-build capability remain available. A device-test report tied to the exact published checksum is still outstanding.
 - **Optional ML/YOLO:** not part of the current public portal release.
 
 For the exact Android verification steps, see [Android APK release verification](android-release-verification.md).

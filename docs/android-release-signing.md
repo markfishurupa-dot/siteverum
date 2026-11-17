@@ -1,6 +1,6 @@
 # Android release signing preparation
 
-The debug APK is signed with a local debug key and is intended for testing. No release APK is distributed by this repository.
+The debug APK is signed with a local debug key and is intended for testing, **not** public distribution. A separately signed Android 1.3.0 APK named `StreetView.apk` is distributed as part of the [published `v2.0.0-alpha.6` GitHub prerelease](https://github.com/markfishurupa-dot/streetview-v2/releases/tag/v2.0.0-alpha.6). Its GitHub-reported SHA-256 matches the independently inspected file (see [verification evidence](apk-v1.3.0-verification.md)). This does not establish which source commit built it or whether an installed older package uses the same signing certificate.
 
 Before distribution, identify the owner of the existing release key and confirm the signing certificate fingerprint of any installed release. Verify package identity and upgrade compatibility on a test device. Decide whether a new key is appropriate for a new distribution or whether the existing key must be retained for updates.
 

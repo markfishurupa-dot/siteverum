@@ -2,9 +2,9 @@
 
 Audit date: **2026-11-17**  
 File supplied by project owner: `StreetView.apk`  
-Candidate release filename: `StreetView-Android-v1.3.0.apk`
+Published GitHub release asset filename: `StreetView.apk`
 
-This file is **not stored in Git**. Its exact bytes are represented by the SHA-256 digest below. The APK was checked locally against the Android project configuration in `apps/android`.
+The APK is **not stored in the Git source tree**. It is distributed as an [official GitHub prerelease asset](https://github.com/markfishurupa-dot/streetview-v2/releases/download/v2.0.0-alpha.6/StreetView.apk). GitHub reports an SHA-256 digest matching the independently inspected binary below. The APK was checked against the Android project configuration in `apps/android`.
 
 ## Verified APK identity
 
@@ -48,26 +48,26 @@ The manifest's application element sets `allowBackup=true`, and the checked-in `
 After obtaining the candidate APK on a machine with Android SDK Build Tools:
 
 ```sh
-apksigner verify --verbose --print-certs StreetView-Android-v1.3.0.apk
+apksigner verify --verbose --print-certs StreetView.apk
 ```
 
 On Windows, compute the checksum:
 
 ```powershell
-Get-FileHash -Algorithm SHA256 .\StreetView-Android-v1.3.0.apk
+Get-FileHash -Algorithm SHA256 .\StreetView.apk
 ```
 
 On Linux:
 
 ```sh
-sha256sum StreetView-Android-v1.3.0.apk
+sha256sum StreetView.apk
 ```
 
 Compare the result to `e0538baafce11915f1a332180ab4adcfefb7bbb6be34921a18e34fcd0ebc3aa1` and confirm the same signing certificate fingerprint is expected for upgrade users.
 
 ## Distribution conditions
 
-Attach the APK to the matching **draft** GitHub Release only after checking the published binary hash, signing-certificate identity and field-test evidence. The owner should approve publication of this exact file, its signing provenance and application package name.
+The owner uploaded the signed APK to the **published** `v2.0.0-alpha.6` prerelease. GitHub reports its size as 13,406,645 bytes and its SHA-256 digest as an exact match to the independently inspected candidate. This verifies the uploaded asset identity, **not** which source commit produced it or whether the exact binary was tested on a physical Android device. Document field-test evidence and previously installed APK signing compatibility before making those claims.
 
 Do **not** publish the keystore or signing passwords. Do not use the CI debug APK as a replacement for this signed candidate.
 
