@@ -19,6 +19,10 @@ test('static demo navigates synthetic photos without an API', async ({ page }) =
   await expect(page.locator('.arrow-marker').first()).toBeVisible();
   await page.locator('.arrow-marker').first().click();
   await expect(page.locator('.point-popup')).toContainText('Bearing');
+  await page.route('https://tile.openstreetmap.org/**', route => route.abort());
+  await page.getByText('OpenStreetMap', { exact: true }).click();
+  await expect(page.locator('.leaflet-tile-pane img').first()).toBeAttached();
+  await page.getByText('Survey only', { exact: true }).click();
   expect(apiRequests).toEqual([]);
 });
 
