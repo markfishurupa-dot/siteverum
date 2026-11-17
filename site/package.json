@@ -1,1 +1,24 @@
-{"name":"streetview-docs","private":true,"type":"module","scripts":{"build":"astro build","dev":"astro dev --host 127.0.0.1","preview":"astro preview --host 127.0.0.1"},"dependencies":{"@astrojs/starlight":"0.43.1","astro":"7.4.12","@astrojs/markdown-remark":"7.3.0"}}
+{
+  "name": "streetview-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prebuild": "node scripts/prepare-demo.mjs",
+    "build": "astro build",
+    "build:real": "npm run build -- --config astro.real.config.mjs && node scripts/prepare-real-preview.mjs",
+    "predev": "node scripts/prepare-demo.mjs",
+    "dev": "astro dev --host 127.0.0.1",
+    "preview": "astro preview --host 127.0.0.1",
+    "preview:real": "npm run build:real && astro preview --config astro.real.config.mjs --host 127.0.0.1 --port 4326",
+    "test": "playwright test"
+  },
+  "dependencies": {
+    "@astrojs/markdown-remark": "7.3.0",
+    "@astrojs/starlight": "0.43.1",
+    "astro": "7.4.12",
+    "leaflet": "1.9.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1"
+  }
+}

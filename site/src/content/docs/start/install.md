@@ -2,7 +2,17 @@
 title: Install the portal
 ---
 
-Install Git, Python 3 and Docker Desktop with Linux containers, then clone the repository and enter the checkout. Run these commands in PowerShell:
+Install Git and Docker Desktop with Linux containers, then clone the repository and enter the checkout. Run these commands in PowerShell:
+
+```powershell
+git clone https://github.com/markfishurupa-dot/streetview-v2.git
+cd streetview-v2
+.\setup.ps1
+```
+
+The installer creates credentials if needed and starts the services. For the manual setup, install Python 3 and run:
+
+The Bash installer is available as `bash ./setup.sh`. Testing from a clean native Linux host is pending.
 
 ```powershell
 git clone https://github.com/markfishurupa-dot/streetview-v2.git

@@ -1,0 +1,6 @@
+header { flex-wrap: wrap; }
+header a { color: white; margin-left: auto; }
+.notice { margin: 0 0 1rem; color: #465d65; }
+.published { background: #fff; }
+.published .viewer { min-height: 28rem; }
+@media (max-width: 850px) { .published .viewer { min-height: 42rem; } }

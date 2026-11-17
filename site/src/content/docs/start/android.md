@@ -1,9 +1,44 @@
 ---
-title: Android capture
+title: Android capture guide
 ---
 
-Open `apps/android` in Android Studio, install Android SDK 36 and use a compatible JDK. Run on an Android 8.0 or newer device, or use `gradlew.bat assembleDebug` on Windows and `./gradlew assembleDebug` on Linux. Install the debug APK from `app/build/outputs/apk/debug/` with Android Studio or `adb install -r app/build/outputs/apk/debug/app-debug.apk`.
+Use the Android app to record video and a GPS track together, then share the files with the person who will process the survey in the StreetView portal. Android 8.0 or later, camera access, precise location and Google Play services for location are required.
 
-Allow camera and precise location access. Start a recording, stop it when finished, then use Recordings to create and share a ZIP or share the matching MP4 and LOG. The ZIP may take time to finish. The portal checks that both files exist and share a base name.
+## Install and allow permissions
 
-The debug build uses a local debug key. A signed release APK is not distributed yet. Recording and sharing on a physical device still require release validation.
+A downloadable release APK is planned for the project's GitHub Releases page. **A signed APK has not been published yet.** Until one is available, build the debug app from `apps/android` in Android Studio or follow the [source build instructions](https://github.com/markfishurupa-dot/streetview-v2/tree/codex/alpha-implementation/apps/android). Install it on the phone and open StreetView. Grant camera and precise location permission, and allow notifications if requested, so recording status can be shown.
+
+![The Android app home screen showing settings, Start and Open Recordings](/streetview-v2/images/android/home.webp)
+
+## Set recording quality and align the camera
+
+1. Tap the **settings gear** at the top right.
+2. Choose **Optimized (smaller files)** to reduce the size of recorded video, or leave **Standard** selected for the standard recording quality. Both modes create encoded video files.
+3. Select **Camera alignment (preview)** and mount the phone securely in the vehicle. Aim the camera at the street and keep the horizon around the upper third of the preview. Press Back when the position is set.
+
+![The Android settings menu showing Standard, Optimized and Camera alignment](/streetview-v2/images/android/settings.webp)
+
+![The Camera alignment screen with positioning instructions](/streetview-v2/images/android/alignment.webp)
+
+## Record the route
+
+1. Return to the home screen and tap **Start**. The status changes to **Recording**, and the screen displays the video name, speed, GPS accuracy, point count and elapsed time.
+2. You can minimize StreetView and use a navigation app while the survey continues in the background. Check the recording status and location accuracy when it is safe to do so.
+3. At the end of the route, return to StreetView and tap **Stop**.
+
+![The Android app recording a survey, with the Stop button displayed](/streetview-v2/images/android/recording.webp)
+
+For easier transfers and to reduce heat on some phones, consider dividing a long route into shorter recordings, for example around 30 minutes each. The suitable duration depends on the device, available storage and operating conditions.
+
+## Review and share recordings
+
+1. Tap **Open Recordings**. Each session shows its name and available actions, including **View data**, **Open log**, and **Share**.
+2. Tap **Share** to share the available MP4 and LOG files separately. Choose a destination available on the device, such as Google Drive, a messaging app, or a file manager.
+3. To send a single archive, open the session's three-dot menu and choose **Archive (ZIP)**. Wait for archiving to finish, then use **Share ZIP** from the menu and choose a destination.
+4. In the portal, upload the ZIP or the matching MP4 and LOG with the same base name, then validate and process the survey.
+
+![The Android Recordings screen with session cards and share options](/streetview-v2/images/android/recordings.webp)
+
+The app does not offer individual survey deletion, helping field teams avoid deleting recordings accidentally. After confirming that all recordings have been safely transferred, Android's app settings can be used to clear the app's stored data. Clearing cache alone may not remove recordings, and Android versions and devices can handle app-specific files differently. Verify that the recordings are gone and retain copies in the chosen destination before clearing data.
+
+Physical-device checks of all recording, background and sharing flows are still part of the release checklist. No signed release APK is currently distributed.
