@@ -94,8 +94,8 @@ def main():
             updated = [round(old[0] + .0002, 7), round(old[1] + .0002, 7)]
             page.get_by_label("New latitude").fill(str(updated[1]))
             page.get_by_label("New longitude").fill(str(updated[0]))
-            page.get_by_role("button", name="Save position").click()
-            expect(page.locator("#job")).to_have_text("Coordinate correction saved", timeout=120000)
+            page.get_by_role("button", name="Save changes").click()
+            expect(page.locator("#job")).to_have_text("Point edit saved", timeout=120000)
             expect(page.locator("#photo")).not_to_have_attribute("src", original + "/images/000000.jpg")
             revised = photo_prefix(page)
             verify_revision(revised, original, 0, updated, folder)
@@ -120,8 +120,8 @@ def main():
             new_position = [float(page.get_by_label("New longitude").input_value()),
                             float(page.get_by_label("New latitude").input_value())]
             assert new_position != updated
-            page.get_by_role("button", name="Save position").click()
-            expect(page.locator("#job")).to_have_text("Coordinate correction saved", timeout=120000)
+            page.get_by_role("button", name="Save changes").click()
+            expect(page.locator("#job")).to_have_text("Point edit saved", timeout=120000)
             expect(page.locator("#photo")).not_to_have_attribute("src", revised + "/images/000000.jpg")
             revised = photo_prefix(page)
             verify_revision(revised, original, 0, new_position, folder)
@@ -133,17 +133,51 @@ def main():
             edited_points = json.loads(request(photo_prefix(page) + "/points.geojson"))["features"]
             assert edited_points[0]["geometry"]["coordinates"] == new_position
 
+            parent = photo_prefix(page)
+            page.evaluate("viewer.map.setView(viewer.location(viewer.points[0]), 19, {animate:false})")
+            page.locator('[title="Photo 1"]').click()
+            page.get_by_role("button", name="Edit", exact=True).click()
+            page.get_by_label("Bearing (degrees)", exact=True).fill("123")
+            expect(page.locator(".edit-bearing")).to_have_attribute("style", "transform: rotate(123deg);")
+            page.get_by_role("button", name="Save changes").click()
+            expect(page.locator("#job")).to_have_text("Point edit saved", timeout=120000)
+            expect(page.locator("#photo")).not_to_have_attribute("src", parent + "/images/000000.jpg")
+            rotated = photo_prefix(page)
+            rotated_points = json.loads(request(rotated + "/points.geojson"))["features"]
+            assert rotated_points[0]["properties"]["bearing"] == 123
+            assert request(rotated + "/route.geojson") == request(parent + "/route.geojson")
+
+            page.evaluate("viewer.map.setView(viewer.location(viewer.points[1]), 18, {animate:false})")
+            page.locator('[title="Photo 2"]').click()
+            page.get_by_role("button", name="Edit", exact=True).click()
+            page.once("dialog", lambda dialog: dialog.accept())
+            page.get_by_role("button", name="Delete point").click()
+            expect(page.locator("#caption")).to_contain_text("of 4", timeout=120000)
+            revised = photo_prefix(page)
+            remaining = [feature["geometry"]["coordinates"] for i, feature in enumerate(rotated_points) if i != 1]
+            route = json.loads(request(revised + "/route.geojson"))
+            assert route["features"][0]["geometry"]["coordinates"] == remaining
+            assert request(revised + "/images/000001.jpg") == request(rotated + "/images/000002.jpg")
+
+            page.locator("#rotation").select_option("0")
+            page.get_by_role("button", name="Process survey").click()
+            expect(page.locator("#job")).to_have_text("Processing complete", timeout=120000)
+            expect(page.locator("#photo")).not_to_have_attribute("src", revised + "/images/000001.jpg")
+            rerun = json.loads(request(photo_prefix(page) + "/points.geojson"))["features"]
+            assert [point["geometry"]["coordinates"] for point in rerun] == remaining
+            assert rerun[0]["properties"]["bearing"] == 123
+
             page.get_by_role("button", name="Publish locally", exact=True).click()
             link = page.get_by_role("link", name="Open published map")
             expect(link).to_be_visible()
             published = context.new_page()
             published.goto(base + link.get_attribute("href"))
-            expect(published.locator("#caption")).to_contain_text("of 5")
+            expect(published.locator("#caption")).to_contain_text("of 4")
             published.locator('[title="Photo 1"]').click()
             expect(published.locator(".point-popup")).to_contain_text("Bearing")
             expect(published.get_by_role("button", name="Edit", exact=True)).to_have_count(0)
             expect(page.get_by_text("Add a photo point", exact=True)).to_have_count(0)
-        print("Validation report, progress/cancel, both point edit methods, exports, reprocessing and publication passed.")
+        print("Validation report, progress/cancel, point movement, bearing, deletion, exports, reprocessing and publication passed.")
     finally:
         cleanup_surveys([label])
 

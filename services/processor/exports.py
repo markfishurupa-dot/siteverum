@@ -25,13 +25,13 @@ def create_gpkg(path, rows):
         INSERT INTO gpkg_spatial_ref_sys VALUES ('WGS 84 geodetic',4326,'EPSG',4326,'GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433],AUTHORITY["EPSG","4326"]]','longitude/latitude');
         CREATE TABLE gpkg_contents (table_name TEXT NOT NULL PRIMARY KEY, data_type TEXT NOT NULL, identifier TEXT UNIQUE, description TEXT DEFAULT '', last_change DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), min_x DOUBLE, min_y DOUBLE, max_x DOUBLE, max_y DOUBLE, srs_id INTEGER, FOREIGN KEY (srs_id) REFERENCES gpkg_spatial_ref_sys(srs_id));
         CREATE TABLE gpkg_geometry_columns (table_name TEXT NOT NULL, column_name TEXT NOT NULL, geometry_type_name TEXT NOT NULL, srs_id INTEGER NOT NULL, z TINYINT NOT NULL, m TINYINT NOT NULL, PRIMARY KEY(table_name,column_name));
-        CREATE TABLE points (id INTEGER PRIMARY KEY, geom BLOB NOT NULL, frame_index INTEGER NOT NULL, image_path TEXT NOT NULL, requested_ms INTEGER NOT NULL, actual_pts REAL NOT NULL, lat REAL NOT NULL, lon REAL NOT NULL);
+        CREATE TABLE points (id INTEGER PRIMARY KEY, geom BLOB NOT NULL, frame_index INTEGER NOT NULL, image_path TEXT NOT NULL, requested_ms INTEGER NOT NULL, actual_pts REAL NOT NULL, lat REAL NOT NULL, lon REAL NOT NULL, bearing REAL);
         INSERT INTO gpkg_contents (table_name,data_type,identifier,srs_id) VALUES ('points','features','points',4326);
         INSERT INTO gpkg_geometry_columns VALUES ('points','geom','POINT',4326,0,0);
         """)
         for r in rows:
             geom = b'GP' + bytes([0,1]) + struct.pack('<i',4326) + struct.pack('<BIdd',1,1,r['lon'],r['lat'])
-            con.execute('INSERT INTO points (geom,frame_index,image_path,requested_ms,actual_pts,lat,lon) VALUES (?,?,?,?,?,?,?)',(geom,r['frame_index'],r['image_path'],r['requested_ms'],r['actual_pts'],r['lat'],r['lon']))
+            con.execute('INSERT INTO points (geom,frame_index,image_path,requested_ms,actual_pts,lat,lon,bearing) VALUES (?,?,?,?,?,?,?,?)',(geom,r['frame_index'],r['image_path'],r['requested_ms'],r['actual_pts'],r['lat'],r['lon'],r.get('bearing') if r.get('bearing') != '' else None))
         con.commit()
     finally: con.close()
 
@@ -40,7 +40,9 @@ def write_points(output, features):
     for feature in features:
         longitude, latitude = feature["geometry"]["coordinates"]
         rows.append({**feature["properties"], "lat": latitude, "lon": longitude})
-    fields = list(dict.fromkeys(key for row in rows for key in row))
+    fields = list(dict.fromkeys(key for row in rows for key in row)) or [
+        "frame_index", "image_path", "requested_ms", "actual_pts", "lat", "lon", "bearing",
+    ]
     with (output / "points.csv").open("w", encoding="utf-8", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=fields)
         writer.writeheader()

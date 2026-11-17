@@ -39,6 +39,7 @@ def process_job(row):
         metadata, correction_identity = edits.copy_with_edit(
             parent, output, edit["sequence"], [edit["lon"], edit["lat"]],
             lambda progress: checkpoint(job, progress),
+            bearing=edit.get("bearing"), deleted=edit.get("deleted", False),
         )
     else:
         metadata = extract_recordings(row, output)
@@ -53,9 +54,10 @@ def process_job(row):
             raise InterruptedError("Job cancelled")
         if edit:
             db.execute(
-                """INSERT INTO point_corrections (survey,identity,longitude,latitude) VALUES (%s,%s,%s,%s)
-                ON CONFLICT (survey,identity) DO UPDATE SET longitude=excluded.longitude,latitude=excluded.latitude""",
-                (survey, correction_identity, edit["lon"], edit["lat"]),
+                """INSERT INTO point_corrections (survey,identity,longitude,latitude,bearing,deleted) VALUES (%s,%s,%s,%s,%s,%s)
+                ON CONFLICT (survey,identity) DO UPDATE SET longitude=excluded.longitude,latitude=excluded.latitude,
+                bearing=COALESCE(excluded.bearing,point_corrections.bearing),deleted=excluded.deleted""",
+                (survey, correction_identity, edit["lon"], edit["lat"], edit.get("bearing"), edit.get("deleted", False)),
             )
         with db.cursor() as cursor:
             cursor.executemany(
@@ -86,8 +88,8 @@ def extract_recordings(row, output):
         groups = source_groups(db, survey)
         validation = db.execute("SELECT validation FROM surveys WHERE id=%s", (survey,)).fetchone()["validation"] or {}
         reports = validation.get("recordings", {"primary": validation})
-        corrections = {r["identity"]: [r["longitude"], r["latitude"]] for r in db.execute(
-            "SELECT identity,longitude,latitude FROM point_corrections WHERE survey=%s", (survey,),
+        corrections = {r["identity"]: r for r in db.execute(
+            "SELECT identity,longitude,latitude,bearing,deleted FROM point_corrections WHERE survey=%s", (survey,),
         )}
     with tempfile.TemporaryDirectory(prefix="archive-", dir=staging) as temp:
         work = Path(temp)

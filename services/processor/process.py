@@ -122,18 +122,33 @@ def run(video, log, output, max_snap=MAX_SNAP_SECONDS, *, sampling="gps_fix",
                          'speed_mps':fix.get('speed_mps',''),'alt_m':fix.get('alt_m',''),
                          'manual':fix.get('manual',False),'interpolated':fix.get('interpolated',False),'fix_gap_ms':fix.get('fix_gap_ms',0)})
         if not rows: raise ValueError('No valid frames within tolerance')
-        extract_frames(video, rows, tmp, rotation_filter, checkpoint)
         features = [
             {"type": "Feature", "geometry": {"type": "Point", "coordinates": [row["lon"], row["lat"]]},
              "properties": {key: value for key, value in row.items() if key not in ("lon", "lat")}}
             for row in rows
         ]
         recording = {"video_sha256": report["video"]["sha256"], "gps_sha256": report["gps"]["sha256"]}
+        deleted_points = 0
         if corrections:
-            for feature in features:
-                identity = point_identity(feature["properties"], recording, feature["geometry"]["coordinates"])
-                if identity in corrections:
-                    apply_correction(feature, identity, corrections[identity])
+            retained = []
+            for row, feature in zip(rows, features):
+                properties = feature["properties"]
+                identity = point_identity(properties, recording, feature["geometry"]["coordinates"])
+                correction = corrections.get(identity)
+                if correction:
+                    if correction["deleted"]:
+                        deleted_points += 1
+                        continue
+                    apply_correction(feature, identity, [correction["longitude"], correction["latitude"]],
+                                     correction["bearing"])
+                index = len(retained)
+                row.update(frame_index=index, image_path=f"images/{index:06d}.jpg")
+                properties.update(frame_index=index, image_path=row["image_path"])
+                retained.append((row, feature))
+            rows = [row for row, _ in retained]
+            features = [feature for _, feature in retained]
+        if rows:
+            extract_frames(video, rows, tmp, rotation_filter, checkpoint)
         coords = [feature["geometry"]["coordinates"] for feature in features if not feature["properties"]["manual"]]
         route = {"type": "FeatureCollection", "features": (
             [{"type": "Feature", "properties": {}, "geometry": {"type": "LineString", "coordinates": coords}}]
@@ -144,7 +159,7 @@ def run(video, log, output, max_snap=MAX_SNAP_SECONDS, *, sampling="gps_fix",
         write_json(tmp / "route.geojson", route)
         manifest = {
             "schema_version": "2.0-draft", "sampling": sampling, "rotation": rotation,
-            "manual_points_added": sum(row["manual"] for row in rows),
+            "manual_points_added": sum(row["manual"] for row in rows), "deleted_points": deleted_points,
             "corrected_points": sum("original_coordinates" in feature["properties"] for feature in features),
             "interval": interval, "max_accuracy": max_accuracy, "max_snap_seconds": max_snap,
             **recording, "frame_count": len(rows), "skipped": skipped, "warnings": report["warnings"],

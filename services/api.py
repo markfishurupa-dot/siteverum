@@ -310,7 +310,7 @@ def enqueue(survey: UUID, settings: Settings):
         if not config["manual_points"]:
             config.pop("manual_points")
         corrections = db.execute(
-            "SELECT identity,longitude,latitude FROM point_corrections WHERE survey=%s ORDER BY identity", (survey,),
+            "SELECT identity,longitude,latitude,bearing,deleted FROM point_corrections WHERE survey=%s ORDER BY identity", (survey,),
         ).fetchall()
         fingerprint_data = [rows, config, corrections] if corrections else [rows, config]
         fingerprint = hashlib.sha256(json.dumps(fingerprint_data, sort_keys=True).encode()).hexdigest()
@@ -337,6 +337,7 @@ def enqueue(survey: UUID, settings: Settings):
 class PointCoordinates(BaseModel):
     lat: float = Field(ge=-90, le=90)
     lon: float = Field(ge=-180, le=180)
+    bearing: float | None = Field(default=None, ge=0, lt=360)
 
 
 @app.get("/api/v2/surveys/{survey}/runs/{job}/points/{sequence}", dependencies=[Depends(authenticate)])
@@ -375,6 +376,16 @@ def point_telemetry(survey: UUID, job: UUID, sequence: int):
 @app.patch("/api/v2/surveys/{survey}/runs/{job}/points/{sequence}", status_code=202,
            dependencies=[Depends(authenticate)])
 def move_point(survey: UUID, job: UUID, sequence: int, coordinates: PointCoordinates):
+    return queue_point_edit(survey, job, sequence, coordinates.model_dump(exclude_none=True))
+
+
+@app.delete("/api/v2/surveys/{survey}/runs/{job}/points/{sequence}", status_code=202,
+            dependencies=[Depends(authenticate)])
+def delete_point(survey: UUID, job: UUID, sequence: int):
+    return queue_point_edit(survey, job, sequence, {"deleted": True})
+
+
+def queue_point_edit(survey, job, sequence, changes):
     with connect() as db:
         survey_row(db, survey, True)
         idle(db, survey)
@@ -384,10 +395,12 @@ def move_point(survey: UUID, job: UUID, sequence: int, coordinates: PointCoordin
         ).fetchone()
         if not latest or latest["id"] != job:
             raise HTTPException(409, "Reload the survey to edit its latest completed run")
-        if not db.execute("SELECT 1 FROM frames WHERE job=%s AND sequence=%s", (job, sequence)).fetchone():
+        point = db.execute("SELECT ST_X(geom) AS lon, ST_Y(geom) AS lat FROM frames WHERE job=%s AND sequence=%s",
+                           (job, sequence)).fetchone()
+        if not point:
             raise HTTPException(404, "Photo point not found")
         revision = uuid4()
-        edit = {"parent": str(job), "sequence": sequence, **coordinates.model_dump()}
+        edit = {"parent": str(job), "sequence": sequence, **point, **changes}
         db.execute(
             """INSERT INTO jobs (id,survey,fingerprint,state,settings,coordinate_edit,source_revision)
             VALUES (%s,%s,%s,'queued',%s,%s,%s)""",

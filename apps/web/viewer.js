@@ -34,6 +34,12 @@ class SurveyViewer {
     const line = L.geoJSON(route, {style: {color: "#287691", weight: 4}}).addTo(this.route);
     this.map.invalidateSize();
     if (!this.points.length) {
+      this.index = 0;
+      document.getElementById("photo").removeAttribute("src");
+      document.getElementById("download-photo").hidden = true;
+      document.getElementById("caption").textContent = "No photo points";
+      document.getElementById("previous").disabled = true;
+      document.getElementById("next").disabled = true;
       this.drawMarkers();
       if (line.getBounds().isValid()) this.map.fitBounds(line.getBounds(), {padding: [25, 25], maxZoom: 19});
       return;
@@ -83,6 +89,7 @@ class SurveyViewer {
     const url = this.file(properties.image_path);
     document.getElementById("photo").src = url;
     document.getElementById("download-photo").href = url;
+    document.getElementById("download-photo").hidden = false;
     document.getElementById("caption").textContent =
       "Photo " + (index + 1) + " of " + this.points.length + " | " + properties.actual_pts.toFixed(3) + " s" +
       (properties.recording_number ? " | Recording " + properties.recording_number : "") +
@@ -151,26 +158,39 @@ class SurveyViewer {
     popup.options.offset = L.point(0, -24);
     const form = document.createElement("form");
     form.className = "point-editor";
-    const field = (text, value, limit) => {
+    const field = (text, value, min, max, required = true, parent = form) => {
       const label = document.createElement("label");
       label.textContent = text;
       const input = document.createElement("input");
-      Object.assign(input, {type: "number", step: "any", min: -limit, max: limit, required: true, value});
+      Object.assign(input, {type: "number", step: "any", min, max, required, value});
       label.append(input);
-      form.append(label);
+      parent.append(label);
       return input;
     };
     const [longitude, latitude] = feature.geometry.coordinates;
     const address = document.createElement("p");
     address.textContent = "Drag the handle or enter new coordinates.";
     form.append(address);
-    const lat = field("New latitude", latitude, 90);
-    const lon = field("New longitude", longitude, 180);
+    const positions = document.createElement("div");
+    positions.className = "point-editor-row";
+    form.append(positions);
+    const lat = field("New latitude", latitude, -90, 90, true, positions);
+    const lon = field("New longitude", longitude, -180, 180, true, positions);
+    const originalBearing = feature.properties.bearing;
+    const bearing = field("Bearing (degrees)", originalBearing == null || originalBearing === "" ?
+      "" : Number(originalBearing) % 360, 0, 360, false);
     const save = document.createElement("button");
-    save.textContent = "Save position";
+    save.textContent = "Save changes";
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "Delete point";
+    remove.className = "destructive";
     const status = document.createElement("p");
     status.setAttribute("role", "status");
-    form.append(save, status);
+    const actions = document.createElement("div");
+    actions.className = "point-editor-row";
+    actions.append(save, remove);
+    form.append(actions, status);
     box.append(form);
     L.DomEvent.disableClickPropagation(form);
 
@@ -180,6 +200,15 @@ class SurveyViewer {
         html: '<span aria-hidden="true">+</span>'}),
       title: "Drag to correct the photo position"
     }).addTo(this.map);
+    const preview = handle.getElement().querySelector("span");
+    const updateBearing = () => {
+      const hasBearing = bearing.value !== "" && bearing.checkValidity();
+      preview.classList.toggle("edit-bearing", hasBearing);
+      preview.textContent = hasBearing ? "" : "+";
+      preview.style.transform = hasBearing ? "rotate(" + Number(bearing.value) + "deg)" : "";
+    };
+    bearing.oninput = updateBearing;
+    updateBearing();
     handle.on("drag", () => {
       const position = handle.getLatLng().wrap();
       lat.value = position.lat.toFixed(7);
@@ -193,15 +222,29 @@ class SurveyViewer {
       handle.setLatLng(position);
       popup.setLatLng(position);
     };
-    form.onsubmit = async event => {
-      event.preventDefault();
+    const submit = async change => {
       save.disabled = true;
+      remove.disabled = true;
       try {
-        await this.options.saveEdit(feature.properties.frame_index, {lat: Number(lat.value), lon: Number(lon.value)});
+        await change();
         if (popup.isOpen()) this.map.closePopup(popup);
       } catch (error) {
         status.textContent = error.message;
         save.disabled = false;
+        remove.disabled = false;
+      }
+    };
+    form.onsubmit = event => {
+      event.preventDefault();
+      const coordinates = {lat: Number(lat.value), lon: Number(lon.value)};
+      if (bearing.value !== "" && (originalBearing == null || originalBearing === "" || Number(bearing.value) !== Number(originalBearing) % 360)) {
+        coordinates.bearing = Number(bearing.value) % 360;
+      }
+      submit(() => this.options.saveEdit(feature.properties.frame_index, coordinates));
+    };
+    remove.onclick = () => {
+      if (window.confirm("Delete this photo point from the current survey?")) {
+        submit(() => this.options.deletePoint(feature.properties.frame_index));
       }
     };
     popup.update();

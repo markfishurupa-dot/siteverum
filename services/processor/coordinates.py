@@ -13,8 +13,11 @@ def point_identity(properties, recording, coordinates):
     return hashlib.sha256(json.dumps(fields, separators=(",", ":")).encode()).hexdigest()
 
 
-def apply_correction(feature, identity, coordinates):
+def apply_correction(feature, identity, coordinates, bearing=None):
     properties = feature["properties"]
     properties.setdefault("original_coordinates", feature["geometry"]["coordinates"])
     properties["correction_identity"] = identity
     feature["geometry"]["coordinates"] = coordinates
+    if bearing is not None:
+        properties.setdefault("original_bearing", properties.get("bearing"))
+        properties["bearing"] = bearing

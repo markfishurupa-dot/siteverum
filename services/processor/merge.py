@@ -17,14 +17,13 @@ def combine(recordings, output, checkpoint):
             points.append(feature)
         routes.extend(read_json(folder / "route.geojson")["features"])
     checkpoint(95)
-    if not points:
-        raise ValueError("No video frames were selected")
     write_points(output, points)
     write_json(output / "route.geojson", {"type": "FeatureCollection", "features": routes})
     report = {
         "schema_version": "2.0-draft", "frame_count": len(points),
         "manual_points_added": sum(r["manual_points_added"] for r in manifests),
         "recordings": manifests,
+        "deleted_points": sum(r.get("deleted_points", 0) for r in manifests),
         "corrected_points": sum(r["corrected_points"] for r in manifests),
     }
     write_json(output / "manifest.json", report)

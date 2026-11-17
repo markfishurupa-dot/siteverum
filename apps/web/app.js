@@ -140,10 +140,10 @@ async function refresh() {
   $("discard-recording").hidden = selectedRecording === "primary" || !!included;
   $("discard-recording").disabled = !!active;
   const stateLabels = {
-    queued: latest?.is_edit ? "Coordinate correction queued" : "Processing queued",
-    running: latest?.is_edit ? "Saving coordinate correction" : "Processing survey",
-    completed: latest?.is_edit ? "Coordinate correction saved" : "Processing complete",
-    failed: latest?.is_edit ? "Coordinate correction failed" : "Processing failed",
+    queued: latest?.is_edit ? "Point edit queued" : "Processing queued",
+    running: latest?.is_edit ? "Saving point edit" : "Processing survey",
+    completed: latest?.is_edit ? "Point edit saved" : "Processing complete",
+    failed: latest?.is_edit ? "Point edit failed" : "Processing failed",
     cancelled: "Processing cancelled"
   };
   $("start").hidden = !!active;
@@ -307,6 +307,10 @@ async function showRun(job, requested, isEdit) {
     canEdit: () => !current.jobs.some(job => ["queued", "running"].includes(job.state)),
     saveEdit: async (sequence, coordinates) => {
       await api(artifact(shownRun, "points/" + sequence), "PATCH", coordinates);
+      await refresh();
+    },
+    deletePoint: async sequence => {
+      await api(artifact(shownRun, "points/" + sequence), "DELETE");
       await refresh();
     }
   });

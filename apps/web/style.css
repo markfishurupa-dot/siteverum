@@ -22,7 +22,7 @@ nav a { display:inline-block; margin:0 1rem .35rem 0; }
 #delete { color:#86241e; margin-left:auto; }
 .photo-marker { display:grid; place-items:center; }
 .point-marker span { width:10px; height:10px; border-radius:50%; border:1px solid #9f181b; }
-.arrow-marker span { width:24px; height:24px; clip-path:polygon(50% 6%, 89% 65%, 57% 54%, 57% 94%, 43% 94%, 43% 54%, 11% 65%); }
+.arrow-marker span, .edit-bearing { width:24px; height:24px; clip-path:polygon(50% 6%, 89% 65%, 57% 54%, 57% 94%, 43% 94%, 43% 54%, 11% 65%); }
 .published { margin:1rem; }
 .published #map { height:65vh; }
 .published figure img { height:55vh; }
@@ -74,3 +74,7 @@ button, .button-link { white-space: nowrap; }
 .dialog-actions form { margin: 0; }
 .destructive { color: white; border-color: #8a241e; background: #9a3028; }
 #delete-confirmation-error { color: #86241e; }
+
+.edit-bearing { display: block; background: white; }
+
+.point-editor-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .35rem; }
