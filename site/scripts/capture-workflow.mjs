@@ -1,4 +1,5 @@
 // Capture the real portal against a disposable stack and synthetic source files.
+// Generate those files with: python site/scripts/generate-fixture.py site/public/demo/photos/001.webp
 import { chromium, expect } from '@playwright/test';
 import path from 'node:path';
 import { mkdir } from 'node:fs/promises';
