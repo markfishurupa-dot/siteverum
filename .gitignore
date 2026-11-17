@@ -14,3 +14,8 @@
 *.pt
 *.onnx
 private-samples/
+site/node_modules/
+site/dist/
+site/.astro/
+*.apk
+*.aab
