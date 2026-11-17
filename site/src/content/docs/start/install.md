@@ -1,5 +1,5 @@
 ---
-title: Install the StreetView portal
+title: Install the portal
 description: Start StreetView locally with Docker on Windows or Linux.
 ---
 
