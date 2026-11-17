@@ -12,6 +12,8 @@ cd streetview-v2
 
 The installer creates credentials if needed and starts the services. For the manual setup, install Python 3 and run:
 
+The Bash installer is available as `bash ./setup.sh`. Testing from a clean native Linux host is pending.
+
 ```powershell
 git clone https://github.com/markfishurupa-dot/streetview-v2.git
 cd streetview-v2
