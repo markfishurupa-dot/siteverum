@@ -13,10 +13,10 @@ Create self-hosted surveys from video and GPS, review photos on a map, correct p
 - [Installation and user guide](site/src/content/docs/start/install.md)
 - [Visual survey tutorial](site/src/content/docs/guide/workflow.md)
 - [Android capture app](apps/android/README.md)
-- [Interactive demo source](site/src/pages/demo/index.astro) — see the documentation preview instructions below
+- [Interactive demo](https://markfishurupa-dot.github.io/streetview-v2/demo/)
 - [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [License](LICENSE)
 
-To preview the documentation and demo locally, install Node.js 24, run `npm ci --prefix site` followed by `npm run dev --prefix site`, and open the local address printed by Astro. The demo uses fictional coordinates and synthetic imagery.
+To preview the documentation and demo locally, install Node.js 24, run `npm ci --prefix site` followed by `npm run dev --prefix site`, and open the local address printed by Astro.
 
 To review the real survey on this workstation, run `npm run preview:real --prefix site`. It uses the processed survey stored in `private-samples/real-demo` and opens the documentation and demo on port 4326. This command rebuilds the local preview with the real photo sequence and OpenStreetMap selected.
 
