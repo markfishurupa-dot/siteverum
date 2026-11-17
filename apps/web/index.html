@@ -75,6 +75,13 @@
       <option value="route">Route only</option>
       <option value="points">Photo points only</option>
     </select></label>
+    <label id="basemap-control" hidden>Default basemap <select id="publish-basemap">
+      <option value="survey">Survey only</option>
+      <option value="osm">OpenStreetMap</option>
+    </select></label>
+    <label id="availability-control" hidden>
+      <input type="checkbox" id="publish-public"> Publicly available
+    </label>
     <button id="publication" hidden></button>
     <button id="save-publication" hidden>Update published map</button>
     <a id="published-link" hidden>Open published map</a>

@@ -20,7 +20,7 @@
     document.getElementById("title").textContent = survey.label;
     document.title = survey.label + " | StreetView";
     document.getElementById("results").hidden = false;
-    new SurveyViewer().load(points, route, file);
+    new SurveyViewer({defaultBasemap: survey.default_basemap}).load(points, route, file);
   } catch (error) {
     document.getElementById("message").textContent = error.message;
   }

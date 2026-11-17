@@ -75,3 +75,9 @@ Local Docker benchmark, with the same recordings, rotation settings, and direct 
 - Long recording, 128 photos: 90.958 s after. The old run was stopped without completing after at least 288.14 s of extraction. All 57 finished JPEGs captured before stopping matched their counterparts byte for byte. This comparison is against the previous portal processor.
 - Twelve Python tests passed with the private sample configured. A synthetic smoke test compared batch and single-frame extraction, including a repeated source frame and a rotated last frame.
 - Edge verified the upload information dialog, absent/green/yellow indicators, preservation of the published run until republication, and both cancel and confirm in the deletion dialog.
+
+## Public map access and default basemap
+
+Version 2.0.0-alpha.6 saves access and basemap choices for each publication. Existing maps require admin credentials and open with Survey only. Public maps serve their selected layers and photos without credentials. The workspace, survey management, and export bundles remain admin only.
+
+The isolated Compose stack applied the migration. A temporary synthetic survey verified anonymous access to map pages, selected layers and photos, the saved OpenStreetMap preference, access denial for admin endpoints and export bundles, and revocation after switching to private or unpublishing.

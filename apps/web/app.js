@@ -156,6 +156,8 @@ async function refresh() {
   $("job").textContent = latest ? [stateLabels[latest.state], latest.error].filter(Boolean).join(": ") : "";
   $("delete").disabled = !!active;
   $("layers-control").hidden = !ready;
+  $("basemap-control").hidden = !ready;
+  $("availability-control").hidden = !ready;
   $("publication").hidden = !ready;
   $("publication").disabled = !row.published && !row.can_publish;
   $("save-publication").disabled = !row.can_publish;
@@ -166,6 +168,8 @@ async function refresh() {
   $("save-publication").hidden = !row.published;
   if ($("publish-layers").dataset.survey !== requested) {
     $("publish-layers").value = row.map_layers;
+    $("publish-basemap").value = row.default_basemap;
+    $("publish-public").checked = row.publicly_available;
     $("publish-layers").dataset.survey = requested;
   }
   $("publication").textContent = row.published ? "Unpublish locally" : "Publish locally";
@@ -279,14 +283,21 @@ $("confirm-delete").onclick = async () => {
     button.disabled = false;
   }
 };
+function publicationSettings() {
+  return {
+    layers: $("publish-layers").value,
+    default_basemap: $("publish-basemap").value,
+    publicly_available: $("publish-public").checked
+  };
+}
 $("publication").onclick = action(async () => {
   await api(base() + "/publication/" + (current.published ? "unpublish" : "publish"), "POST",
-    current.published ? undefined : {layers: $("publish-layers").value});
+    current.published ? undefined : publicationSettings());
   await refresh(); await catalog();
 });
 $("save-publication").onclick = action(async () => {
-  await api(base() + "/publication/publish", "POST", {layers: $("publish-layers").value});
-  await refresh();
+  await api(base() + "/publication/publish", "POST", publicationSettings());
+  await refresh(); await catalog();
   $("message").textContent = "Published map updated.";
 });
 $("about-open").onclick = () => $("about").showModal();

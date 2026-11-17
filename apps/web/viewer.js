@@ -11,7 +11,9 @@ class SurveyViewer {
       maxZoom: 21,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     });
-    L.control.layers({"Survey only": L.layerGroup().addTo(this.map), "OpenStreetMap": osm}, {}, {collapsed: false}).addTo(this.map);
+    const surveyOnly = L.layerGroup();
+    (options.defaultBasemap === "osm" ? osm : surveyOnly).addTo(this.map);
+    L.control.layers({"Survey only": surveyOnly, "OpenStreetMap": osm}, {}, {collapsed: false}).addTo(this.map);
     this.points = [];
     this.map.on("zoomend moveend", () => this.drawMarkers());
 

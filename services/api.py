@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Literal
 from uuid import UUID, uuid4
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
@@ -39,10 +39,11 @@ async def lifespan(app):
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 basic = HTTPBasic()
+optional_basic = HTTPBasic(auto_error=False)
 
 
-def authenticate(request: Request, credentials: HTTPBasicCredentials = Depends(basic)):
-    if not (hmac.compare_digest(credentials.username.encode(), b"admin")
+def authenticate(request: Request, credentials: HTTPBasicCredentials | None = Depends(basic)):
+    if credentials is None or not (hmac.compare_digest(credentials.username.encode(), b"admin")
             and hmac.compare_digest(credentials.password.encode(), os.environ["SV_ADMIN_PASSWORD"].encode())):
         raise HTTPException(401, "Sign in as admin", headers={"WWW-Authenticate": "Basic"})
     if request.method not in {"GET", "HEAD"} and request.headers.get("X-StreetView-Request") != "1":
@@ -61,6 +62,7 @@ LATEST_COMPLETED = """LEFT JOIN LATERAL (
 
 def survey_row(db, survey, lock=False):
     sql = f"""SELECT s.id,s.label,s.created,s.validation,s.published,s.slug,s.map_layers,s.source_revision,
+        s.publicly_available,s.default_basemap,
         {PUBLICATION_STATE} AS publication_state,
         COALESCE(latest.source_revision=s.source_revision, false) AS can_publish
         FROM surveys s {LATEST_COMPLETED} WHERE s.id=%s AND NOT s.deleted"""
@@ -431,6 +433,8 @@ def delete(survey: UUID):
 
 class PublicationSettings(BaseModel):
     layers: Literal["both", "route", "points"] = "both"
+    publicly_available: bool | None = None
+    default_basemap: Literal["survey", "osm"] | None = None
 
 
 @app.post("/api/v2/surveys/{survey}/publication/{action}", dependencies=[Depends(authenticate)])
@@ -447,9 +451,14 @@ def publish(survey: UUID, action: str, settings: PublicationSettings | None = No
             ).fetchone()
             if not current or current["source_revision"] != survey_data["source_revision"]:
                 raise HTTPException(409, "Process the current survey sources before publishing")
+        options = settings if current else None
         db.execute(
-            "UPDATE surveys SET published=%s,published_job=%s,map_layers=COALESCE(%s,map_layers) WHERE id=%s",
-            (current is not None, current["id"] if current else None, settings.layers if settings else None, survey),
+            """UPDATE surveys SET published=%s,published_job=%s,map_layers=COALESCE(%s,map_layers),
+                publicly_available=COALESCE(%s,publicly_available),
+                default_basemap=COALESCE(%s,default_basemap) WHERE id=%s""",
+            (current is not None, current["id"] if current else None,
+             options.layers if options else None, options.publicly_available if options else None,
+             options.default_basemap if options else None, survey),
         )
     return {"published": action == "publish"}
 
@@ -469,33 +478,39 @@ def artifact(survey: UUID, job: UUID, filename: str):
     return FileResponse(path, headers={"Cache-Control": "private, no-store"})
 
 
-def published_run(slug):
+def published_run(slug: str, request: Request, credentials: HTTPBasicCredentials | None = Depends(optional_basic)):
     with connect() as db:
         row = db.execute(
-            """SELECT s.label, s.map_layers, s.id AS survey, j.id AS job
+            """SELECT s.label,s.map_layers,s.publicly_available,s.default_basemap,s.id AS survey,j.id AS job
             FROM surveys s JOIN jobs j ON j.id=s.published_job AND j.survey=s.id
             WHERE lower(s.slug)=lower(%s) AND s.published AND NOT s.deleted AND j.state='completed'
             ORDER BY j.created DESC LIMIT 1""", (slug,),
         ).fetchone()
     if not row:
         raise HTTPException(404, "Published survey not found")
+    if not row["publicly_available"]:
+        authenticate(request, credentials)
     return row
 
 
-@app.get("/api/v2/published/{slug}", dependencies=[Depends(authenticate)])
-def publication(slug: str):
-    row = published_run(slug)
-    return {"label": row["label"], "job": row["job"], "layers": row["map_layers"]}
+@app.get("/api/v2/published/{slug}")
+def publication(response: Response, row=Depends(published_run)):
+    response.headers["Cache-Control"] = "private, no-store"
+    return {"label": row["label"], "job": row["job"], "layers": row["map_layers"],
+            "default_basemap": row["default_basemap"]}
 
 
-@app.get("/api/v2/published/{slug}/files/{job}/{filename:path}", dependencies=[Depends(authenticate)])
-def published_file(slug: str, job: UUID, filename: str):
-    row = published_run(slug)
+@app.get("/api/v2/published/{slug}/files/{job}/{filename:path}")
+def published_file(job: UUID, filename: str, row=Depends(published_run)):
     if row["job"] != job:
         raise HTTPException(404, "Reload the survey map for the latest run")
     if row["map_layers"] == "route" and filename != "route.geojson":
         raise HTTPException(404)
     if row["map_layers"] == "points" and filename == "route.geojson":
+        raise HTTPException(404)
+    if row["publicly_available"] and filename not in {"points.geojson", "route.geojson"} and not re.fullmatch(
+        r"images/[0-9]{6}\.jpg", filename
+    ):
         raise HTTPException(404)
     return artifact(row["survey"], job, filename)
 
@@ -503,7 +518,6 @@ def published_file(slug: str, job: UUID, filename: str):
 app.mount("/static", StaticFiles(directory=WEB), name="static")
 
 
-@app.get("/{slug}", dependencies=[Depends(authenticate)])
-def published_page(slug: str):
-    published_run(slug)
+@app.get("/{slug}", dependencies=[Depends(published_run)])
+def published_page():
     return FileResponse(WEB / "published.html", headers={"Cache-Control": "private, no-store"})
