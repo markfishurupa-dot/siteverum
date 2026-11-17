@@ -4,6 +4,7 @@
 
 - Include Android 1.3.0 capture source and debug build instructions.
 - Prepare a documentation site and release checks.
+- Add a read-only synthetic demo, visual portal walkthrough, and Windows and Linux setup scripts.
 
 ## 2.0.0-alpha.6
 

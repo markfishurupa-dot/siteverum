@@ -17,5 +17,7 @@ private-samples/
 site/node_modules/
 site/dist/
 site/.astro/
+site/test-results/
+site/public/demo/assets/
 *.apk
 *.aab

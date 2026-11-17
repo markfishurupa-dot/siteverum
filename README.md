@@ -1,5 +1,23 @@
 # StreetView 2.0
 
+**Turn road survey videos into interactive maps.**
+
+Capture on Android → Upload → Process → Explore → Export
+
+![StreetView workspace showing a synthetic survey on the map and a generated street image](site/public/images/screenshots/viewer.png)
+
+*The workspace above uses synthetic coordinates and a generated street image.*
+
+Create self-hosted surveys from video and GPS, review photos on a map, correct positions and bearings, and export GIS layers. Published maps can be restricted to the administrator or made available to visitors who can reach your server.
+
+- [Installation and user guide](site/src/content/docs/start/install.md)
+- [Visual survey tutorial](site/src/content/docs/guide/workflow.md)
+- [Android capture app](apps/android/README.md)
+- [Interactive demo source](site/public/demo/) — see the documentation preview instructions below
+- [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [License](LICENSE)
+
+To preview the documentation and demo locally, install Node.js 24, run `npm ci --prefix site` followed by `npm run dev --prefix site`, and open the local address printed by Astro. The demo uses fictional coordinates and synthetic imagery.
+
 Turn road survey video and GPS tracks into georeferenced photographs, GIS layers, and a map you can explore. StreetView is a self-hosted alpha designed by Mark Urupa and licensed under AGPL-3.0-only.
 
 Record on Android, export the recording, upload it to the portal, validate and process it, then review the map or export the results for GIS software. The portal supports multiple recordings, photo rotation, point corrections, route and photo layers, and read-only published survey maps.

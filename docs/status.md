@@ -89,3 +89,9 @@ The Android 1.3.0 project was copied from the owner's local Android Studio proje
 The initial Starlight documentation builds locally. Starlight 0.43.1 and Astro 7.4.12 replaced an older version after an npm audit reported vulnerabilities; the resulting npm audit reports zero known vulnerabilities at the time of review. Candidate comparison: withastro/starlight (MIT, default branch commit 2026-11-17) provides the requested documentation integration; squidfunk/mkdocs-material (MIT, default branch commit 2026-11-07) is an alternative Python-based documentation engine. No external project code was copied.
 
 The Python suite passed 11 tests with the private-sample test skipped. Android and documentation GitHub Actions are prepared but have not yet been verified on GitHub. The release checklist records outstanding launch gates, including the demo, screenshots, installation validation, privacy and distribution review. This branch is not yet a complete public release candidate.
+
+## Public launch finalization in progress
+
+The PR #1 Android, core and documentation checks passed. The static demo uses the existing viewer and twelve synthetic images derived from one generated scene with fictional coordinates. A disposable Docker installation processed a synthetic MP4 and LOG to capture actual interface screenshots. Documentation and demo Playwright checks passed at desktop and mobile sizes, including navigation and no backend requests.
+
+The Windows installer was run in isolated Compose projects, including a fresh generated-credentials run and a repeat run that preserved the credentials. The Linux installer, backup and restore, physical Android use, complete privacy audit and image redistribution review still require verification. The Pages and container publication templates are disabled. See the release checklist for remaining work.

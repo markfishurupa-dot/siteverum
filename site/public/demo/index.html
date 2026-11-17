@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en" data-view="published">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StreetView interactive demo</title>
+  <link rel="stylesheet" href="assets/leaflet/leaflet.css">
+  <link rel="stylesheet" href="assets/viewer.css">
+  <link rel="stylesheet" href="demo.css">
+  <script defer src="assets/leaflet/leaflet.js"></script>
+  <script defer src="assets/viewer.js"></script>
+  <script defer src="demo.js"></script>
+</head>
+<body>
+  <header><h1>StreetView demo</h1><span>Read-only synthetic sample</span><a href="../">Documentation</a></header>
+  <section class="published">
+    <p class="notice">Explore an invented route and synthetic imagery. Video processing requires a local installation. OpenStreetMap requests tiles from its servers.</p>
+    <p id="message" role="status"></p>
+    <div id="results" hidden><div class="viewer">
+      <div id="map" aria-label="Synthetic survey map"></div>
+      <figure>
+        <img id="photo" alt="Synthetic street scene">
+        <figcaption id="caption"></figcaption>
+        <div class="photo-controls"><button id="previous">Previous photo</button><button id="next">Next photo</button><a id="download-photo" download>Download image</a></div>
+      </figure>
+    </div></div>
+  </section>
+</body>
+</html>

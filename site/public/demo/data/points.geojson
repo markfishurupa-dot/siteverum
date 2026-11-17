@@ -1,0 +1,197 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.001,
+          0.001
+        ]
+      },
+      "properties": {
+        "frame_index": 1,
+        "image_path": "photos/001.webp",
+        "actual_pts": 0.0,
+        "bearing": 25.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.00106,
+          0.00113
+        ]
+      },
+      "properties": {
+        "frame_index": 2,
+        "image_path": "photos/002.webp",
+        "actual_pts": 2.0,
+        "bearing": 25.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.00112,
+          0.00126
+        ]
+      },
+      "properties": {
+        "frame_index": 3,
+        "image_path": "photos/003.webp",
+        "actual_pts": 4.0,
+        "bearing": 25.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.00118,
+          0.00139
+        ]
+      },
+      "properties": {
+        "frame_index": 4,
+        "image_path": "photos/004.webp",
+        "actual_pts": 6.0,
+        "bearing": 25.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.00124,
+          0.00152
+        ]
+      },
+      "properties": {
+        "frame_index": 5,
+        "image_path": "photos/005.webp",
+        "actual_pts": 8.0,
+        "bearing": 25.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.0013,
+          0.00165
+        ]
+      },
+      "properties": {
+        "frame_index": 6,
+        "image_path": "photos/006.webp",
+        "actual_pts": 10.0,
+        "bearing": 25.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.00136,
+          0.00178
+        ]
+      },
+      "properties": {
+        "frame_index": 7,
+        "image_path": "photos/007.webp",
+        "actual_pts": 12.0,
+        "bearing": 25.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.00142,
+          0.00191
+        ]
+      },
+      "properties": {
+        "frame_index": 8,
+        "image_path": "photos/008.webp",
+        "actual_pts": 14.0,
+        "bearing": 25.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.00148,
+          0.00204
+        ]
+      },
+      "properties": {
+        "frame_index": 9,
+        "image_path": "photos/009.webp",
+        "actual_pts": 16.0,
+        "bearing": 25.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.00154,
+          0.00217
+        ]
+      },
+      "properties": {
+        "frame_index": 10,
+        "image_path": "photos/010.webp",
+        "actual_pts": 18.0,
+        "bearing": 25.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.0016,
+          0.0023
+        ]
+      },
+      "properties": {
+        "frame_index": 11,
+        "image_path": "photos/011.webp",
+        "actual_pts": 20.0,
+        "bearing": 25.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.00166,
+          0.00243
+        ]
+      },
+      "properties": {
+        "frame_index": 12,
+        "image_path": "photos/012.webp",
+        "actual_pts": 22.0,
+        "bearing": 25.0
+      }
+    }
+  ]
+}
