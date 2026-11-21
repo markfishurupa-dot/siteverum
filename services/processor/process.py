@@ -33,9 +33,18 @@ def frame_times(video):
         raise ValueError("Video frame timestamps are missing or not ordered")
     return times
 
+def _has_value(value):
+    return value is not None and str(value).strip() != ""
+
+
+def _interpolate_bearing(start_deg, end_deg, fraction):
+    delta = (end_deg - start_deg + 180.0) % 360.0 - 180.0
+    return (start_deg + delta * fraction) % 360.0
+
+
 def sampled_fixes(fixes, mode, interval, max_accuracy):
     usable = [r for r in fixes if int(r["video_elapsed_ms"]) >= 0 and
-              (max_accuracy is None or (r.get("accuracy_m") and float(r["accuracy_m"]) <= max_accuracy))]
+              (max_accuracy is None or (_has_value(r.get("accuracy_m")) and float(r["accuracy_m"]) <= max_accuracy))]
     if not usable or mode == "gps_fix":
         return usable
     result = [usable[0]]
@@ -49,6 +58,8 @@ def sampled_fixes(fixes, mode, interval, max_accuracy):
         else:
             end = cumulative + preflight.haversine(float(previous["lat"]), float(previous["lon"]),
                                                   float(following["lat"]), float(following["lon"]))
+        if end <= cumulative:
+            continue
         while next_step <= end:
             if len(result) >= 10000:
                 raise ValueError("Sampling exceeds 10,000 images")
@@ -60,6 +71,19 @@ def sampled_fixes(fixes, mode, interval, max_accuracy):
             delta = (float(following["lon"]) - float(previous["lon"]) + 180) % 360 - 180
             sample["lon"] = (float(previous["lon"]) + delta * fraction + 180) % 360 - 180
             sample["lat"] = float(previous["lat"]) + fraction * (float(following["lat"]) - float(previous["lat"]))
+            if _has_value(previous.get("timestamp_utc")) and _has_value(following.get("timestamp_utc")):
+                sample["timestamp_utc"] = round(
+                    int(previous["timestamp_utc"]) + fraction * (int(following["timestamp_utc"]) - int(previous["timestamp_utc"]))
+                )
+            for numeric_field in ("alt_m", "speed_mps", "accuracy_m"):
+                if _has_value(previous.get(numeric_field)) and _has_value(following.get(numeric_field)):
+                    p_val = float(previous[numeric_field])
+                    f_val = float(following[numeric_field])
+                    sample[numeric_field] = round(p_val + fraction * (f_val - p_val), 4)
+            if _has_value(previous.get("bearing")) and _has_value(following.get("bearing")):
+                sample["bearing"] = round(
+                    _interpolate_bearing(float(previous["bearing"]), float(following["bearing"]), fraction), 2
+                )
             # Avoid interpolating across long outages or clear position jumps.
             distance = preflight.haversine(float(previous["lat"]), float(previous["lon"]),
                                            float(following["lat"]), float(following["lon"]))
