@@ -84,7 +84,7 @@ The isolated Compose stack applied the migration. A temporary synthetic survey v
 
 ## Public release preparation in progress
 
-The Android 1.3.0 project was copied from the owner's local Android Studio project without its keystore, APK or local configuration. `assembleDebug` succeeded locally with Android Studio's JDK and SDK. Source inspection found video recording, GPS log fields matching the portal contract, ZIP export, and sharing of paired files. Physical-device recording and sharing have not been verified, nor has signed release provenance or update compatibility.
+The Android 1.3.0 project was copied from the owner's local Android Studio project without its keystore, APK or local configuration. `assembleDebug` succeeded locally with Android Studio's JDK and SDK. Source inspection found video recording, GPS log fields matching the portal contract, ZIP export, and sharing of paired files. The owner subsequently reported two successful field tests, with six sessions recorded and processed. The exact tested APK digest, signed release provenance and update compatibility have not been independently established.
 
 The initial Starlight documentation builds locally. Starlight 0.43.1 and Astro 7.4.12 replaced an older version after an npm audit reported vulnerabilities; the resulting npm audit reports zero known vulnerabilities at the time of review. Candidate comparison: withastro/starlight (MIT, default branch commit 2026-11-17) provides the requested documentation integration; squidfunk/mkdocs-material (MIT, default branch commit 2026-11-07) is an alternative Python-based documentation engine. No external project code was copied.
 
