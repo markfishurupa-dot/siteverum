@@ -3,15 +3,15 @@ title: Process your first survey
 description: A beginner's walkthrough from Android recording to an interactive map and GIS export.
 ---
 
-This guide takes you from an Android recording to georeferenced photographs and downloadable GIS files. The images show the **real StreetView portal with synthetic test data**, so you can recognize the same controls on your own installation.
+This guide takes you from an Android recording to georeferenced photographs and downloadable GIS files. The images show the **real SiteVerum portal with synthetic test data**, so you can recognize the same controls on your own installation.
 
 :::note[Before you begin]
-You need a running [StreetView portal](/streetview-v2/start/install/) and a matching **MP4 video + GPS LOG**, or the **ZIP** exported by the Android app. The Android source is available, and a [signed Android 1.3.0 APK is available from the official alpha.6 release](https://github.com/markfishurupa-dot/streetview-v2/releases/download/v2.0.0-alpha.6/StreetView.apk).
+You need a running [SiteVerum portal](/siteverum/start/install/) and a matching **MP4 video + GPS LOG**, or the **ZIP** exported by the Android app. The Android source is available, and a [signed Android 1.3.0 APK is available from the official alpha.6 release](https://github.com/markfishurupa-dot/siteverum/releases/download/v2.0.0-alpha.6/SiteVerum.apk).
 :::
 
 ## 1. Record and transfer the survey
 
-Use [StreetView on Android](/streetview-v2/start/android/) to record the route. The app saves a video and GPS log with matching basenames, for example:
+Use [SiteVerum on Android](/siteverum/start/android/) to record the route. The app saves a video and GPS log with matching basenames, for example:
 
 ```text
 SV_20260423_114708.mp4
@@ -26,7 +26,7 @@ Open **http://127.0.0.1:18080/** and sign in as `admin` with the password in you
 
 Create a survey, choose **Recording files**, select either the ZIP or the two files, then press **Upload**.
 
-![Portal upload controls](/streetview-v2/images/screenshots/upload.png)
+![Portal upload controls](/siteverum/images/screenshots/upload.png)
 
 Expected result: the portal reports that sources were staged. If only one of the two files is available, upload the matching counterpart before processing.
 
@@ -34,7 +34,7 @@ Expected result: the portal reports that sources were staged. If only one of the
 
 Select **Validate sources**. The portal checks the media and GPS inputs, then shows a result with quality warnings. Use **Download report** to obtain more detail and excluded-record information.
 
-![Portal validation results and processing controls](/streetview-v2/images/screenshots/validation.png)
+![Portal validation results and processing controls](/siteverum/images/screenshots/validation.png)
 
 **Warnings are not always fatal.** Poor GPS accuracy or sudden position jumps may need review, while corrupted media, unmatched filenames or missing files can prevent processing.
 
@@ -50,17 +50,17 @@ Set **Interval** for time or distance sampling, and optionally set **Maximum GPS
 
 Start with **GPS fixes** for your first survey. Select **Process survey** and follow the progress bar. Processing runs in the background worker and can take longer for larger videos.
 
-![Processing progress and cancellation](/streetview-v2/images/screenshots/processing.png)
+![Processing progress and cancellation](/siteverum/images/screenshots/processing.png)
 
 ## 5. Explore and correct the map
 
 Once processing completes, select a photo point on the map or use **Previous photo** and **Next photo**. The photo viewer is linked to the point locations and route.
 
-![Processed survey viewer](/streetview-v2/images/screenshots/viewer.png)
+![Processed survey viewer](/siteverum/images/screenshots/viewer.png)
 
 In the authenticated workspace, selecting a point provides location and GPS details. Use **Edit** to correct coordinates or bearing, drag the map handle for a position adjustment, or choose **Delete point** to remove an unwanted point. The route reconnects neighboring points within the *same recording*. Corrections are preserved across matching reprocessing runs.
 
-For more details, read [Map, photos and corrections](/streetview-v2/guide/map/).
+For more details, read [Map, photos and corrections](/siteverum/guide/map/).
 
 ## 6. Export GIS data
 
@@ -81,12 +81,12 @@ The portable ZIP uses **relative image paths**, so keep the folder structure tog
 Choose **Published map layers**, **Default basemap**, and whether the map should be **Publicly available**. Select **Publish locally**, then **Open published map**.
 
 - Without public access enabled, readers need administrator authentication.
-- With public access enabled, the selected map and photographs can be viewed **without signing in by anyone able to reach the StreetView server**.
+- With public access enabled, the selected map and photographs can be viewed **without signing in by anyone able to reach the SiteVerum server**.
 - The default Docker installation listens only on `127.0.0.1`, so it is **not automatically accessible from the Internet**.
 - A publication does not update after workspace edits until you republish it.
 
-Read [Publishing and access control](/streetview-v2/guide/publishing/) before exposing any survey outside your computer.
+Read [Publishing and access control](/siteverum/guide/publishing/) before exposing any survey outside your computer.
 
 ## Next steps
 
-You can [add another recording](/streetview-v2/guide/recordings/) to the same survey, explore the [interactive public demo](/streetview-v2/demo/) without uploading files, or read [troubleshooting](/streetview-v2/reference/help/) if validation or Docker startup fails.
+You can [add another recording](/siteverum/guide/recordings/) to the same survey, explore the [interactive public demo](/siteverum/demo/) without uploading files, or read [troubleshooting](/siteverum/reference/help/) if validation or Docker startup fails.
