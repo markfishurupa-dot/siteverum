@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "StreetView"
+rootProject.name = "SiteVerum"
 include(":app")

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>StreetView</title>
+<title>SiteVerum</title>
 <link rel="stylesheet" href="/static/vendor/leaflet.css">
 <link rel="stylesheet" href="/static/style.css">
 <script defer src="/static/vendor/leaflet.js"></script>
@@ -11,12 +11,12 @@
 <script defer src="/static/app.js"></script>
 </head>
 <body>
-<header><h1>StreetView</h1><span>Local survey workspace</span></header>
+<header><h1>SiteVerum</h1><span>Local survey workspace</span></header>
 <main>
 <aside>
   <form id="create"><label for="label">New survey</label><input id="label" required maxlength="120" placeholder="Survey name"><button>Create survey</button></form>
   <h2>Surveys</h2><ul id="catalog"></ul>
-  <footer class="sidebar-footer"><button id="about-open" aria-haspopup="dialog">About StreetView</button></footer>
+  <footer class="sidebar-footer"><button id="about-open" aria-haspopup="dialog">About SiteVerum</button></footer>
 </aside>
 <section>
 <p id="message" role="status">Select or create a survey.</p>
@@ -92,7 +92,7 @@
 </main>
 <dialog id="upload-help" aria-labelledby="upload-help-title">
   <h2 id="upload-help-title">Supported recording files</h2>
-  <p>Choose the ZIP exported from the StreetView mobile app, or choose the matching MP4 video and GPS LOG from the same recording. You can upload the matching files together or one at a time.</p>
+  <p>Choose the ZIP exported from the SiteVerum mobile app, or choose the matching MP4 video and GPS LOG from the same recording. You can upload the matching files together or one at a time.</p>
   <form method="dialog"><button autofocus>Close</button></form>
 </dialog>
 <dialog id="delete-confirmation" aria-labelledby="delete-confirmation-title" aria-describedby="delete-confirmation-text">
@@ -106,10 +106,10 @@
 </dialog>
 <dialog id="about" aria-labelledby="about-title">
   <div class="about-heading">
-    <div><h2 id="about-title">About StreetView</h2><p id="about-version"></p></div>
+    <div><h2 id="about-title">About SiteVerum</h2><p id="about-version"></p></div>
     <form method="dialog"><button aria-label="Close About" autofocus>Close</button></form>
   </div>
-  <p>StreetView turns GPS-tagged video into an interactive survey map with georeferenced photos and GIS exports.</p>
+  <p>SiteVerum turns GPS-tagged video into an interactive survey map with georeferenced photos and GIS exports.</p>
   <p>Copyright 2026 Mark Urupa. Licensed under the <a href="/license" target="_blank" rel="noopener noreferrer">GNU Affero General Public License, version 3</a>. This software is provided without warranty.</p>
   <p>Created and designed by <a href="https://www.linkedin.com/in/mark-urupa/" target="_blank" rel="noopener noreferrer">Mark Urupa</a>.</p>
 </dialog>
