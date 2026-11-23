@@ -1,3 +1,10 @@
+# Unreleased - SiteVerum rebranding
+
+- Adopt **SiteVerum** as the public product and documentation identity (formerly StreetView v2.0).
+- Keep existing `SV_` recording filenames, `SV_*` environment variables, Android application ID, survey APIs, database schema, and existing Docker Compose identity for compatibility.
+- Keep historical `StreetView.apk` and release `v2.0.0-alpha.6` unchanged. This branch does not distribute a new signed APK.
+- Prepare for the GitHub repository rename and documentation project-path migration. See `docs/siteverum-rebranding.md`.
+
 # Changelog
 
 ## Unreleased

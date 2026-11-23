@@ -29,9 +29,9 @@ try {
     docker compose -f $compose up -d --build --wait
     if ($LASTEXITCODE -ne 0) { throw 'Docker Compose failed. Inspect the output above and run docker compose -f deploy/compose.yaml logs.' }
     $address = (docker compose -f $compose port api 8000 | Select-Object -First 1).Trim()
-    Write-Host "StreetView is running. Open http://$address/."
+    Write-Host "SiteVerum is running. Open http://$address/."
     Write-Host "Sign in as admin using SV_ADMIN_PASSWORD in $config. Keep this file private and preserve it."
 } catch {
-    Write-Error "StreetView setup failed: $_"
+    Write-Error "SiteVerum setup failed: $_"
     exit 1
 }

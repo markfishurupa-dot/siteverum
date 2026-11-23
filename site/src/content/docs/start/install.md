@@ -1,9 +1,9 @@
 ---
 title: Install the portal
-description: Start StreetView locally with Docker on Windows or Linux.
+description: Start SiteVerum locally with Docker on Windows or Linux.
 ---
 
-StreetView runs as three Docker Compose services: **web/API**, **processing worker**, and **PostgreSQL/PostGIS**. Original recordings and generated survey files use a persistent Docker volume.
+SiteVerum runs as three Docker Compose services: **web/API**, **processing worker**, and **PostgreSQL/PostGIS**. Original recordings and generated survey files use a persistent Docker volume.
 
 :::note[Supported platforms]
 The verified target is **Linux amd64 containers on Windows Docker Desktop**. A Linux installer exists and has been exercised in a Linux CLI container, but a clean native-Linux host installation has not yet been accepted. ARM64 is not a verified target. The current portal supports one administrator and one processing worker.
@@ -24,10 +24,10 @@ docker info
 docker compose version
 ```
 
-### 2. Download and start StreetView
+### 2. Download and start SiteVerum
 
 ```powershell
-git clone https://github.com/markfishurupa-dot/streetview-v2.git
+git clone https://github.com/markfishurupa-dot/siteverum.git
 cd streetview-v2
 .\setup.ps1
 ```
@@ -42,7 +42,7 @@ Open **http://127.0.0.1:18080/** (or the address printed by the setup script).
 
 Use username `admin` and the value of **`SV_ADMIN_PASSWORD`** stored in your local `deploy/.env` file. This file also contains the **database password**: keep it private, do not commit or share it, and preserve it when upgrading.
 
-You can now follow [Process your first survey](/streetview-v2/guide/first-survey/).
+You can now follow [Process your first survey](/siteverum/guide/first-survey/).
 
 ## Linux: Docker Engine
 
@@ -51,12 +51,12 @@ You need Linux with **amd64** architecture, Git, OpenSSL, Docker Engine, and the
 ```bash
 docker info
 docker compose version
-git clone https://github.com/markfishurupa-dot/streetview-v2.git
+git clone https://github.com/markfishurupa-dot/siteverum.git
 cd streetview-v2
 bash ./setup.sh
 ```
 
-The script creates the same local `deploy/.env` credential file, starts the Compose stack and prints a local address. Visit **http://127.0.0.1:18080/** on the Linux host. If you are accessing it from a different computer, the default loopback binding will not accept that connection; see [Publish a map](/streetview-v2/guide/publishing/) before configuring networking.
+The script creates the same local `deploy/.env` credential file, starts the Compose stack and prints a local address. Visit **http://127.0.0.1:18080/** on the Linux host. If you are accessing it from a different computer, the default loopback binding will not accept that connection; see [Publish a map](/siteverum/guide/publishing/) before configuring networking.
 
 :::caution[Linux acceptance status]
 The Bash installer has been tested in a Linux container with the Docker Desktop engine. A clean native-Linux host and backup/restore test remain pending. Do not treat Linux support as production-certified yet.
@@ -111,4 +111,4 @@ A fully validated backup-and-restore procedure is still a release acceptance ite
 - **The map has no street background:** Select OpenStreetMap in the layer control. Tiles require Internet access.
 - **Another computer cannot connect:** The default Compose file deliberately binds the API to `127.0.0.1`; a separate secured network deployment is required.
 
-For more cases, see [Troubleshooting and FAQ](/streetview-v2/reference/help/).
+For more cases, see [Troubleshooting and FAQ](/siteverum/reference/help/).

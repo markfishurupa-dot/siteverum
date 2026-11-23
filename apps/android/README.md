@@ -1,6 +1,6 @@
-# Android capture app
+# SiteVerum Capture (Android)
 
-This directory contains the StreetView 1.3.0 Android capture source. It records video and GPS data for import into the StreetView portal. It requires Android 8.0 (API 26) or newer, camera and precise location permissions, and Google Play services for location.
+This directory contains the SiteVerum Capture Android source (original 1.3.0 release branded StreetView). It records video and GPS data for import into the SiteVerum portal. It requires Android 8.0 (API 26) or newer, camera and precise location permissions, and Google Play services for location.
 
 For the illustrated recording and sharing workflow, see the [Android capture guide](../../site/src/content/docs/start/android.md).
 
