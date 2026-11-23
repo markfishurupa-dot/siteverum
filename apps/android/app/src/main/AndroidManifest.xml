@@ -16,7 +16,9 @@
         android:allowBackup="true"
         android:supportsRtl="true"
         android:label="@string/app_name"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_siteverum_launcher"
+        android:roundIcon="@mipmap/ic_siteverum_launcher_round"
+        android:theme="@style/Theme.SiteVerum">
 
         <activity
             android:name=".RecordingsActivity"

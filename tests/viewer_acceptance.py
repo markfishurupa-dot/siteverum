@@ -4,6 +4,7 @@ from tempfile import TemporaryDirectory
 from uuid import uuid4
 
 from playwright.sync_api import expect, sync_playwright
+from portal_browser import sign_in
 
 from compose_acceptance import base, browser_import, cleanup_surveys, fixture, password, request
 
@@ -26,12 +27,12 @@ def run_acceptance(label):
             tiles.append(tile.request.url)
             tile.abort()
         page.route("https://tile.openstreetmap.org/**", intercept)
-        page.goto(base)
+        sign_in(page, base, password)
         browser_import(page, label, fixture, Path(tmp) / "original.gpkg")
-        page.get_by_text("OpenStreetMap", exact=True).click()
+        page.locator(".leaflet-control-layers").get_by_text("OpenStreetMap", exact=True).click()
         expect(page.locator(".leaflet-control-attribution")).to_contain_text("OpenStreetMap")
         assert tiles
-        page.get_by_text("Survey only", exact=True).click()
+        page.locator(".leaflet-control-layers").get_by_text("Survey only", exact=True).click()
         page.evaluate("viewer.map.setView(viewer.location(viewer.points[0]), 18, {animate:false})")
         expect(page.locator(".point-marker")).to_have_count(7)
         page.evaluate("viewer.map.setView(viewer.location(viewer.points[0]), 19, {animate:false})")
@@ -54,6 +55,18 @@ def run_acceptance(label):
         published.goto(base + url)
         expect(published.locator("#title")).to_have_text(label)
         expect(published.locator("#caption")).to_contain_text("Photo 1 of 7")
+        for viewport in ({"width": 1440, "height": 850}, {"width": 390, "height": 844}):
+            published.set_viewport_size(viewport)
+            published.wait_for_function("""() => {
+                const map = document.querySelector("#map").getBoundingClientRect();
+                return map.width > 0 && map.height > 0 &&
+                    document.documentElement.scrollHeight <= innerHeight + 1 &&
+                    document.querySelector(".photo-controls").getBoundingClientRect().bottom <= innerHeight + 1;
+            }""")
+            expect(published.locator("#photo")).to_be_visible()
+            expect(published.get_by_role("button", name="Next photo")).to_be_visible()
+        published.get_by_role("button", name="Next photo").click()
+        expect(published.locator("#caption")).to_contain_text("Photo 2 of 7")
         expect(published.locator("#add-point")).to_have_count(0)
         request(url, auth=False, expected=401)
         page.get_by_role("button", name="Unpublish locally", exact=True).click()

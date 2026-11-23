@@ -1,4 +1,6 @@
 .env
+.env.modules-dev
+/deploy/module-models/
 **/local.properties
 **/build/
 **/.gradle/

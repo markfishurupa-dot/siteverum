@@ -11,6 +11,7 @@ from zipfile import ZipFile
 
 import pyogrio
 from playwright.sync_api import expect, sync_playwright
+from portal_browser import sign_in
 
 from compose_acceptance import base, cleanup_surveys, fixture, password, request
 
@@ -48,7 +49,7 @@ def main():
             browser = pw.chromium.launch(channel="msedge")
             context = browser.new_context(http_credentials={"username": "admin", "password": password})
             page = context.new_page()
-            page.goto(base)
+            sign_in(page, base, password)
             page.locator("#label").fill(label)
             page.get_by_role("button", name="Create survey").click()
             expect(page.locator("#title")).to_have_text(label)

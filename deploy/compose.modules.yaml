@@ -1,0 +1,46 @@
+
+services:
+  api:
+    volumes:
+      - module-output:/outbox:ro
+  module-broker:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    command: ["python", "-m", "module_processing.broker"]
+    restart: on-failure
+    environment:
+      PYTHONPATH: /app/services
+      PGHOST: db
+      PGDATABASE: streetview
+      PGUSER: streetview
+      PGPASSWORD: ${SV_DB_PASSWORD:?Set SV_DB_PASSWORD}
+      SV_MEDIA: /media/streetview
+    depends_on:
+      api: {condition: service_healthy}
+    volumes:
+      - media:/media/streetview
+      - module-input:/inbox
+      - module-output:/outbox
+      - ./module-models:/models:ro
+  module-runner:
+    build:
+      context: ..
+      dockerfile: deploy/module-runner.Dockerfile
+    network_mode: none
+    read_only: true
+    init: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    cpus: 4
+    mem_limit: 8g
+    restart: on-failure
+    tmpfs:
+      - /tmp:size=512m,uid=10001,gid=10001,mode=0700
+    volumes:
+      - module-input:/inbox:ro
+      - module-output:/outbox
+volumes:
+  module-input:
+  module-output:

@@ -1,0 +1,8 @@
+
+services:
+  module-runner:
+    build:
+      args:
+        TORCH_CHANNEL: cu128
+        TORCH_SUFFIX: +cu128
+    gpus: all

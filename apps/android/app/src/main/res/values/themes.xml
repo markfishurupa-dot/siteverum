@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <style name="Theme.StreetView" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.SiteVerum" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/field_background</item>
+        <item name="android:colorAccent">@color/field_blue</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
 </resources>

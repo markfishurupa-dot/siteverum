@@ -1,0 +1,5 @@
+
+services:
+  module-runner:
+    build:
+      dockerfile: deploy/module-runner-ml.Dockerfile

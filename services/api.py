@@ -1,6 +1,5 @@
 import csv
 import hashlib
-import hmac
 import json
 import os
 import re
@@ -11,12 +10,16 @@ from typing import Literal
 from uuid import UUID, uuid4
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse, StreamingResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
+from fastapi.security import HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel, Field
 
+from module_processing.routes import router as module_router
+from module_processing.publication import PublishedLayer, choose_derivatives, published_image, save_layers
+from portal_auth import (NO_STORE, authenticate, credentials_match, end_session, optional_basic,
+                         require_request_header, session_cookie, signed_in, start_session)
 from processor import preflight
 from runtime import ROOT, connect, migrate, run_path, source_groups
 from version import VERSION
@@ -38,16 +41,6 @@ async def lifespan(app):
 
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
-basic = HTTPBasic()
-optional_basic = HTTPBasic(auto_error=False)
-
-
-def authenticate(request: Request, credentials: HTTPBasicCredentials | None = Depends(basic)):
-    if credentials is None or not (hmac.compare_digest(credentials.username.encode(), b"admin")
-            and hmac.compare_digest(credentials.password.encode(), os.environ["SV_ADMIN_PASSWORD"].encode())):
-        raise HTTPException(401, "Sign in as admin", headers={"WWW-Authenticate": "Basic"})
-    if request.method not in {"GET", "HEAD"} and request.headers.get("X-StreetView-Request") != "1":
-        raise HTTPException(403, "Missing request protection header")
 
 
 PUBLICATION_STATE = """CASE
@@ -62,7 +55,7 @@ LATEST_COMPLETED = """LEFT JOIN LATERAL (
 
 def survey_row(db, survey, lock=False):
     sql = f"""SELECT s.id,s.label,s.created,s.validation,s.published,s.slug,s.map_layers,s.source_revision,
-        s.publicly_available,s.default_basemap,
+        s.publicly_available,s.default_basemap,s.privacy_module,s.published_derivative_run,
         {PUBLICATION_STATE} AS publication_state,
         COALESCE(latest.source_revision=s.source_revision, false) AS can_publish
         FROM surveys s {LATEST_COMPLETED} WHERE s.id=%s AND NOT s.deleted"""
@@ -113,9 +106,44 @@ def license_text():
     return FileResponse(WEB.parents[1] / "LICENSE", media_type="text/plain; charset=utf-8")
 
 
-@app.get("/", dependencies=[Depends(authenticate)])
-def index():
-    return FileResponse(WEB / "index.html", headers={"Cache-Control": "no-store"})
+class LoginCredentials(BaseModel):
+    username: str = Field(max_length=128)
+    password: str = Field(max_length=1024)
+
+
+@app.get("/auth/login")
+def login_page(request: Request):
+    if signed_in(request, None):
+        return RedirectResponse("/", headers=NO_STORE)
+    return FileResponse(WEB / "login.html", headers=NO_STORE)
+
+
+@app.post("/api/v2/session")
+def login(request: Request, response: Response, data: LoginCredentials):
+    require_request_header(request)
+    if not credentials_match(data.username, data.password):
+        raise HTTPException(401, "Username or password is incorrect", headers=NO_STORE)
+    start_session(request, response)
+    response.headers.update(NO_STORE)
+    return {"signed_in": True}
+
+
+@app.post("/api/v2/session/logout")
+def logout(request: Request, response: Response):
+    require_request_header(request)
+    end_session(request, response)
+    response.headers.update(NO_STORE)
+    return {"signed_in": False}
+
+
+@app.get("/")
+def index(request: Request, credentials: HTTPBasicCredentials | None = Depends(optional_basic)):
+    if not signed_in(request, credentials):
+        return RedirectResponse("/auth/login", headers=NO_STORE)
+    response = FileResponse(WEB / "index.html", headers=NO_STORE)
+    if session_cookie(request) not in request.cookies:
+        start_session(request, response)
+    return response
 
 
 @app.get("/api/v2/surveys", dependencies=[Depends(authenticate)])
@@ -143,6 +171,9 @@ def create(data: SurveyCreate):
 def detail(survey: UUID):
     with connect() as db:
         row = survey_row(db, survey)
+        row["module_layers"] = db.execute(
+            "SELECT run,layer FROM published_module_layers WHERE survey=%s ORDER BY layer,run", (survey,),
+        ).fetchall()
         row["sources"] = [
             {**{key: value for key, value in item.items() if key != "storage"}, "recording": recording}
             for recording, items in source_groups(db, survey).items() for item in items.values()
@@ -428,6 +459,8 @@ def delete(survey: UUID):
         survey_row(db, survey, True)
         idle(db, survey)
         db.execute("UPDATE surveys SET deleted=true,published=false,published_job=NULL WHERE id=%s", (survey,))
+        db.execute("""UPDATE module_runs SET state='cancelled',finished=now()
+                      WHERE survey=%s AND state IN ('queued','running')""", (survey,))
     return {"deleted": True}
 
 
@@ -435,6 +468,8 @@ class PublicationSettings(BaseModel):
     layers: Literal["both", "route", "points"] = "both"
     publicly_available: bool | None = None
     default_basemap: Literal["survey", "osm"] | None = None
+    derivative_run: UUID | None = None
+    module_layers: list[PublishedLayer] | None = Field(default=None, max_length=12)
 
 
 @app.post("/api/v2/surveys/{survey}/publication/{action}", dependencies=[Depends(authenticate)])
@@ -452,11 +487,18 @@ def publish(survey: UUID, action: str, settings: PublicationSettings | None = No
             if not current or current["source_revision"] != survey_data["source_revision"]:
                 raise HTTPException(409, "Process the current survey sources before publishing")
         options = settings if current else None
+        derivative = None
+        if current:
+            derivative = choose_derivatives(db, survey, current["id"], survey_data["privacy_module"],
+                                            options.derivative_run if options else None)
+            save_layers(db, survey, current["id"], options.module_layers if options else None)
+        else:
+            db.execute("DELETE FROM published_module_layers WHERE survey=%s", (survey,))
         db.execute(
-            """UPDATE surveys SET published=%s,published_job=%s,map_layers=COALESCE(%s,map_layers),
+            """UPDATE surveys SET published=%s,published_job=%s,published_derivative_run=%s,map_layers=COALESCE(%s,map_layers),
                 publicly_available=COALESCE(%s,publicly_available),
                 default_basemap=COALESCE(%s,default_basemap) WHERE id=%s""",
-            (current is not None, current["id"] if current else None,
+            (current is not None, current["id"] if current else None, derivative,
              options.layers if options else None, options.publicly_available if options else None,
              options.default_basemap if options else None, survey),
         )
@@ -481,7 +523,7 @@ def artifact(survey: UUID, job: UUID, filename: str):
 def published_run(slug: str, request: Request, credentials: HTTPBasicCredentials | None = Depends(optional_basic)):
     with connect() as db:
         row = db.execute(
-            """SELECT s.label,s.map_layers,s.publicly_available,s.default_basemap,s.id AS survey,j.id AS job
+            """SELECT s.label,s.map_layers,s.publicly_available,s.default_basemap,s.id AS survey,j.id AS job,s.privacy_module,s.published_derivative_run
             FROM surveys s JOIN jobs j ON j.id=s.published_job AND j.survey=s.id
             WHERE lower(s.slug)=lower(%s) AND s.published AND NOT s.deleted AND j.state='completed'
             ORDER BY j.created DESC LIMIT 1""", (slug,),
@@ -496,8 +538,29 @@ def published_run(slug: str, request: Request, credentials: HTTPBasicCredentials
 @app.get("/api/v2/published/{slug}")
 def publication(response: Response, row=Depends(published_run)):
     response.headers["Cache-Control"] = "private, no-store"
-    return {"label": row["label"], "job": row["job"], "layers": row["map_layers"],
-            "default_basemap": row["default_basemap"]}
+    with connect() as db:
+        layers = db.execute("""SELECT p.run,p.layer FROM published_module_layers p JOIN module_runs r ON r.id=p.run
+                              WHERE p.survey=%s AND r.source_job=%s ORDER BY p.layer,p.run""",
+                            (row["survey"], row["job"])).fetchall()
+    result = {"label": row["label"], "job": row["job"], "layers": row["map_layers"],
+              "default_basemap": row["default_basemap"]}
+    if layers:
+        result["module_layers"] = layers
+    return result
+
+
+@app.get("/api/v2/published/{slug}/layers/{run}/{layer}")
+def published_layer(run: UUID, layer: str, response: Response, row=Depends(published_run)):
+    with connect() as db:
+        snapshot = db.execute("""SELECT p.collection FROM published_module_layers p
+              JOIN module_runs r ON r.id=p.run JOIN surveys s ON s.id=p.survey
+              WHERE p.survey=%s AND p.run=%s AND p.layer=%s AND r.source_job=%s
+                AND s.published AND NOT s.deleted AND s.published_job=r.source_job""",
+                              (row["survey"], run, layer, row["job"])).fetchone()
+    if not snapshot:
+        raise HTTPException(404)
+    response.headers["Cache-Control"] = "private, no-store"
+    return snapshot["collection"]
 
 
 @app.get("/api/v2/published/{slug}/files/{job}/{filename:path}")
@@ -512,7 +575,16 @@ def published_file(job: UUID, filename: str, row=Depends(published_run)):
         r"images/[0-9]{6}\.jpg", filename
     ):
         raise HTTPException(404)
+    if row["privacy_module"]:
+        if re.fullmatch(r"images/[0-9]{6}\.jpg", filename):
+            return FileResponse(published_image(row, filename), media_type="image/jpeg",
+                                headers={"Cache-Control": "private, no-store"})
+        if filename not in {"points.geojson", "route.geojson"}:
+            raise HTTPException(404)
     return artifact(row["survey"], job, filename)
+
+
+app.include_router(module_router, dependencies=[Depends(authenticate)])
 
 
 app.mount("/static", StaticFiles(directory=WEB), name="static")

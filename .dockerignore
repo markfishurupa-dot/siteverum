@@ -6,5 +6,6 @@
 !apps/web/**
 !deploy/
 !deploy/requirements.txt
+!deploy/requirements-modules-ml.txt
 **/__pycache__/
 !LICENSE

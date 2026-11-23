@@ -1,9 +1,11 @@
 ---
 title: Install the portal
-description: Start StreetView locally with Docker on Windows or Linux.
+description: Start SiteVerum locally with Docker on Windows or Linux.
 ---
 
-StreetView runs as three Docker Compose services: **web/API**, **processing worker**, and **PostgreSQL/PostGIS**. Original recordings and generated survey files use a persistent Docker volume.
+SiteVerum runs as three Docker Compose services: **web/API**, **processing worker**, and **PostgreSQL/PostGIS**. Original recordings and generated survey files use a persistent Docker volume.
+
+For Survey QA, Electrical Poles Detection or a custom module, follow the [module-enabled setup](/streetview-v2/modules/).
 
 :::note[Supported platforms]
 The verified target is **Linux amd64 containers on Windows Docker Desktop**. A Linux installer exists and has been exercised in a Linux CLI container, but a clean native-Linux host installation has not yet been accepted. ARM64 is not a verified target. The current portal supports one administrator and one processing worker.
@@ -24,7 +26,7 @@ docker info
 docker compose version
 ```
 
-### 2. Download and start StreetView
+### 2. Download and start SiteVerum
 
 ```powershell
 git clone https://github.com/markfishurupa-dot/streetview-v2.git

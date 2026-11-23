@@ -3,15 +3,15 @@ title: Process your first survey
 description: A beginner's walkthrough from Android recording to an interactive map and GIS export.
 ---
 
-This guide takes you from an Android recording to georeferenced photographs and downloadable GIS files. The images show the **real StreetView portal with synthetic test data**, so you can recognize the same controls on your own installation.
+This guide takes you from an Android recording to georeferenced photographs and downloadable GIS files. The images show the **real SiteVerum portal with synthetic test data**, so you can recognize the same controls on your own installation.
 
 :::note[Before you begin]
-You need a running [StreetView portal](/streetview-v2/start/install/) and a matching **MP4 video + GPS LOG**, or the **ZIP** exported by the Android app. The Android source is available, and a [signed Android 1.3.0 APK is available from the official alpha.6 release](https://github.com/markfishurupa-dot/streetview-v2/releases/download/v2.0.0-alpha.6/StreetView.apk).
+You need a running [SiteVerum portal](/streetview-v2/start/install/) and a matching **MP4 video + GPS LOG**, or the **ZIP** exported by the Android app. To record a survey, see [Install SiteVerum Android 1.3.1](/streetview-v2/start/android/).
 :::
 
 ## 1. Record and transfer the survey
 
-Use [StreetView on Android](/streetview-v2/start/android/) to record the route. The app saves a video and GPS log with matching basenames, for example:
+Use [SiteVerum on Android](/streetview-v2/start/android/) to record the route. The app saves a video and GPS log with matching basenames, for example:
 
 ```text
 SV_20260423_114708.mp4
@@ -81,7 +81,7 @@ The portable ZIP uses **relative image paths**, so keep the folder structure tog
 Choose **Published map layers**, **Default basemap**, and whether the map should be **Publicly available**. Select **Publish locally**, then **Open published map**.
 
 - Without public access enabled, readers need administrator authentication.
-- With public access enabled, the selected map and photographs can be viewed **without signing in by anyone able to reach the StreetView server**.
+- With public access enabled, the selected map and photographs can be viewed **without signing in by anyone able to reach the SiteVerum server**.
 - The default Docker installation listens only on `127.0.0.1`, so it is **not automatically accessible from the Internet**.
 - A publication does not update after workspace edits until you republish it.
 

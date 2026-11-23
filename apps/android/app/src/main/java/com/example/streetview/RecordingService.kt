@@ -40,6 +40,8 @@ class RecordingService : Service() {
         const val EXTRA_IS_RECORDING = "isRecording"
         const val EXTRA_SPEED = "speed"
         const val EXTRA_ACCURACY = "accuracy"
+        const val EXTRA_HAS_SPEED = "hasSpeed"
+        const val EXTRA_HAS_ACCURACY = "hasAccuracy"
         const val EXTRA_POINTS = "points"
         const val EXTRA_ELAPSED_MS = "elapsedMs"
         const val EXTRA_FILE_NAME = "fileName"
@@ -68,6 +70,8 @@ class RecordingService : Service() {
     private var pointsCount: Int = 0
     private var lastSpeedMps: Float = 0f
     private var lastAccuracyM: Float = 0f
+    private var hasSpeed = false
+    private var hasAccuracy = false
 
     private val handler = Handler(Looper.getMainLooper())
     private val ticker = object : Runnable {
@@ -85,6 +89,8 @@ class RecordingService : Service() {
             pointsCount += 1
             lastSpeedMps = location.speed
             lastAccuracyM = location.accuracy
+            hasSpeed = location.hasSpeed()
+            hasAccuracy = location.hasAccuracy()
             writeLog(location)
 
             broadcastStatus()
@@ -128,6 +134,8 @@ class RecordingService : Service() {
             pointsCount = 0
             lastSpeedMps = 0f
             lastAccuracyM = 0f
+            hasSpeed = false
+            hasAccuracy = false
 
             startLocationUpdates()
             setupMediaRecorderVideoOnly()
@@ -417,6 +425,8 @@ class RecordingService : Service() {
             putExtra(EXTRA_IS_RECORDING, isRecording)
             putExtra(EXTRA_SPEED, lastSpeedMps)
             putExtra(EXTRA_ACCURACY, lastAccuracyM)
+            putExtra(EXTRA_HAS_SPEED, isRecording && hasSpeed)
+            putExtra(EXTRA_HAS_ACCURACY, isRecording && hasAccuracy)
             putExtra(EXTRA_POINTS, pointsCount)
             putExtra(EXTRA_ELAPSED_MS, max(0L, elapsed))
             putExtra(EXTRA_FILE_NAME, videoFile?.name ?: "")
@@ -443,7 +453,7 @@ class RecordingService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val ch = NotificationChannel(CHANNEL_ID, "StreetView Recording", NotificationManager.IMPORTANCE_LOW)
+            val ch = NotificationChannel(CHANNEL_ID, getString(R.string.recording_notification_channel), NotificationManager.IMPORTANCE_LOW)
             val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             nm.createNotificationChannel(ch)
         }
@@ -463,8 +473,8 @@ class RecordingService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("StreetView")
+            .setSmallIcon(R.drawable.ic_siteverum_launcher_monochrome)
+            .setContentTitle(getString(R.string.recording_notification_title))
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(openPending)

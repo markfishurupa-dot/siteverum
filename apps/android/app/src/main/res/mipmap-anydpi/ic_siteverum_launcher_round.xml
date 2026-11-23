@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="72"
+    android:viewportHeight="72">
+    <path
+        android:fillColor="#0B1B34"
+        android:pathData="M70,36A34,34 0,1 1,2 36A34,34 0,1 1,70 36Z" />
+    <!-- Match the adaptive foreground without its outer 18 dp on each side. -->
+    <group android:translateX="-18" android:translateY="-18">
+        <path
+            android:pathData="M78,42V50Q78,54 74,57L71,60L78,69"
+            android:strokeColor="#22B0CD"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="3.5" />
+        <path
+            android:pathData="M29,64C39,64 39,76 50,76H60C69,76 68,69 78,69"
+            android:strokeColor="#54E1F4"
+            android:strokeLineCap="round"
+            android:strokeWidth="8" />
+        <path
+            android:pathData="M29,64C39,64 39,76 50,76H60C69,76 68,69 78,69"
+            android:strokeColor="#0B1B34"
+            android:strokeLineCap="round"
+            android:strokeWidth="5" />
+        <path
+            android:pathData="M36,66L39,69 M45,74L49,76 M55,76H59 M65,75L68,72"
+            android:strokeColor="#E4FAFF"
+            android:strokeLineCap="round"
+            android:strokeWidth="1.4" />
+        <path
+            android:fillColor="#54E1F4"
+            android:pathData="M33,64A4,4 0,1 1,25 64A4,4 0,1 1,33 64Z M82,69A4,4 0,1 1,74 69A4,4 0,1 1,82 69Z M82,42A4,4 0,1 1,74 42A4,4 0,1 1,82 42Z" />
+        <path
+            android:fillColor="#FF9C38"
+            android:fillType="evenOdd"
+            android:pathData="M53,25C43,25 36,32 36,42C36,51 46,62 53,67C60,62 70,51 70,42C70,32 63,25 53,25Z M60,42A7,7 0,1 1,46 42A7,7 0,1 1,60 42Z" />
+    </group>
+</vector>

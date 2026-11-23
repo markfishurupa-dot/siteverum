@@ -1,2 +1,6 @@
 :root { --sl-color-accent-low: #d5f2f3; --sl-color-accent: #087e8b; --sl-color-accent-high: #073f49; }
 :root[data-theme='dark'] { --sl-color-accent-low: #0b3840; --sl-color-accent: #56c4c9; --sl-color-accent-high: #c5f1ef; }
+
+.sl-markdown-content img[src*='/images/android/1.3.1/'] {
+  max-width: min(100%, 19rem);
+}

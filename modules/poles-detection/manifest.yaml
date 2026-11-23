@@ -1,0 +1,251 @@
+{
+  "api": "streetview-module-api/v1",
+  "id": "poles-detection",
+  "name": "Electrical Poles Detection",
+  "version": "1.1.0",
+  "custom_checkpoint": true,
+  "description": "Detect poles in survey images and triangulate locations from multiple observations.",
+  "runtime": "python-yolo",
+  "stage": "post_processing",
+  "inputs": [
+    "processed_survey"
+  ],
+  "outputs": [
+    "vector",
+    "table",
+    "diagnostic",
+    "report"
+  ],
+  "permissions": [
+    "read_input",
+    "write_output"
+  ],
+  "gpu": "optional",
+  "timeout_seconds": 7200,
+  "entrypoint": "main.py",
+  "model": {
+    "source": "provisioned",
+    "path": "pole_yolo11s_best.pt",
+    "sha256": "80f281ec613757df2934b258afa9b578ae074af16e7393b87cd2a1b33e283cb6"
+  },
+  "cache": {
+    "settings": [
+      "conf",
+      "imgsz",
+      "limit",
+      "device"
+    ],
+    "artifact": "pole_detections.csv"
+  },
+  "public_properties": ["pole_class", "mean_detection_confidence"],
+  "parameter_order": [
+    ["min_road_distance_m", "<=", "max_road_distance_m"],
+    ["min_aspect", "<=", "max_aspect"],
+    ["min_range_m", "<", "ray_length_m"]
+  ],
+  "parameters": {
+    "conf": {
+      "type": "number",
+      "default": 0.25,
+      "min": 0.01,
+      "max": 1,
+      "description": "Minimum YOLO detection confidence"
+    },
+    "imgsz": {
+      "type": "integer",
+      "default": 1280,
+      "min": 320,
+      "max": 1920,
+      "description": "Inference image size in pixels"
+    },
+    "horizontal_fov_deg": {
+      "type": "number",
+      "default": 70,
+      "min": 1,
+      "max": 160,
+      "description": "Horizontal field of view in degrees"
+    },
+    "camera_heading_offset_deg": {
+      "type": "number",
+      "default": 0,
+      "min": -180,
+      "max": 180,
+      "description": "Clockwise offset from the GPS travel bearing"
+    },
+    "ray_length_m": {
+      "type": "number",
+      "default": 150,
+      "min": 5,
+      "max": 500,
+      "description": "Maximum observation ray length",
+      "advanced": true
+    },
+    "ray_buffer_m": {
+      "type": "number",
+      "default": 1,
+      "min": 0.05,
+      "max": 20,
+      "description": "Ray intersection tolerance",
+      "advanced": true
+    },
+    "cluster_distance_m": {
+      "type": "number",
+      "default": 10,
+      "min": 0.1,
+      "max": 100,
+      "description": "Distance threshold for clustering candidate intersections",
+      "advanced": true
+    },
+    "min_road_distance_m": {
+      "type": "number",
+      "default": 3,
+      "min": 0,
+      "max": 150,
+      "description": "Minimum pole distance from the recording path"
+    },
+    "max_road_distance_m": {
+      "type": "number",
+      "default": 60,
+      "min": 1,
+      "max": 300,
+      "description": "Maximum pole distance from the recording path"
+    },
+    "snap_roadside_offset_m": {
+      "type": "number",
+      "default": 12,
+      "min": 0,
+      "max": 100,
+      "description": "Distance from path used when roadside snapping is enabled",
+      "advanced": true
+    },
+    "dedupe_station_m": {
+      "type": "number",
+      "default": 22,
+      "min": 0,
+      "max": 150,
+      "description": "Along-route deduplication distance. Use 0 to disable",
+      "advanced": true
+    },
+    "dedupe_lateral_m": {
+      "type": "number",
+      "default": 14,
+      "min": 0,
+      "max": 100,
+      "description": "Lateral deduplication threshold",
+      "advanced": true
+    },
+    "max_frame_gap": {
+      "type": "integer",
+      "default": 35,
+      "min": 1,
+      "max": 500,
+      "description": "Maximum gap between sampled photos of the same recording",
+      "advanced": true
+    },
+    "min_support_rays": {
+      "type": "integer",
+      "default": 2,
+      "min": 2,
+      "max": 20,
+      "description": "Minimum supporting observations",
+      "advanced": true
+    },
+    "min_baseline_m": {
+      "type": "number",
+      "default": 2,
+      "min": 0.1,
+      "max": 100,
+      "description": "Minimum distance between observing camera positions",
+      "advanced": true
+    },
+    "min_range_m": {
+      "type": "number",
+      "default": 3,
+      "min": 0,
+      "max": 100,
+      "description": "Minimum forward distance along an observation ray",
+      "advanced": true
+    },
+    "min_angle_deg": {
+      "type": "number",
+      "default": 1,
+      "min": 0.1,
+      "max": 45,
+      "description": "Minimum pair angle away from parallel alignment",
+      "advanced": true
+    },
+    "min_height_ratio": {
+      "type": "number",
+      "default": 0.08,
+      "min": 0,
+      "max": 1,
+      "description": "Minimum bounding-box height as a fraction of the image",
+      "advanced": true
+    },
+    "min_aspect": {
+      "type": "number",
+      "default": 0.005,
+      "min": 0,
+      "max": 1,
+      "description": "Minimum bounding-box width-to-height ratio",
+      "advanced": true
+    },
+    "max_aspect": {
+      "type": "number",
+      "default": 0.55,
+      "min": 0,
+      "max": 3,
+      "description": "Maximum bounding-box width-to-height ratio",
+      "advanced": true
+    },
+    "limit": {
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "max": 20000,
+      "description": "Maximum number of frames scanned. Use 0 for all frames",
+      "advanced": true
+    },
+    "projection": {
+      "type": "string",
+      "default": "linear",
+      "choices": [
+        "linear",
+        "rectilinear"
+      ],
+      "description": "Horizontal image projection"
+    },
+    "roadside_snap": {
+      "type": "boolean",
+      "default": true,
+      "description": "Snap display coordinates to the configured roadside offset"
+    },
+    "shape_filter": {
+      "type": "boolean",
+      "default": true,
+      "advanced": true,
+      "description": "Apply the bounding-box size and aspect thresholds"
+    },
+    "device": {
+      "type": "string",
+      "default": "auto",
+      "choices": [
+        "auto",
+        "cpu"
+      ],
+      "description": "Try CUDA when enabled, or use CPU"
+    },
+    "class_filter": {
+      "type": "string",
+      "default": "",
+      "choices": [
+        "",
+        "pole_beton",
+        "pole_generic",
+        "pole_metal",
+        "pole_wood"
+      ],
+      "description": "Pole class to include. Blank includes all classes"
+    }
+  }
+}

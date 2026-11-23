@@ -15,10 +15,20 @@ import zipfile
 from uuid import uuid4
 
 from playwright.sync_api import expect, sync_playwright
+from portal_browser import sign_in
 import pyogrio
 
 root = Path(__file__).resolve().parents[1]
-settings = dict(line.split("=", 1) for line in (root / "deploy/.env").read_text().splitlines()
+compose_project = os.getenv("STREETVIEW_ACCEPTANCE_COMPOSE_PROJECT")
+settings_file = root / ("deploy/.env.modules-dev" if compose_project == "streetview-v2-modules-dev" else "deploy/.env")
+compose = ["docker", "compose", "--env-file", str(settings_file), "-f", "deploy/compose.yaml"]
+if compose_project:
+    compose.extend(["-p", compose_project])
+if compose_project == "streetview-v2-modules-dev":
+    compose.extend(["-f", "deploy/compose.modules.yaml"])
+    if os.getenv("STREETVIEW_ACCEPTANCE_ML"):
+        compose.extend(["-f", "deploy/compose.modules-ml.yaml"])
+settings = dict(line.split("=", 1) for line in settings_file.read_text().splitlines()
                 if line and not line.startswith("#") and "=" in line)
 password = settings["SV_ADMIN_PASSWORD"]
 base = "http://127.0.0.1:" + settings.get("SV_PORT", "18080")
@@ -125,7 +135,7 @@ def run_acceptance(zip_label, loose_label, invalid_label):
             browser = pw.chromium.launch(channel="msedge")
             context = browser.new_context(http_credentials={"username": "admin", "password": password})
             page = context.new_page()
-            page.goto(base)
+            sign_in(page, base, password)
             a, media = browser_import(page, zip_label, fixture, target / "zip.gpkg")
             b, _ = browser_import(page, loose_label, files, target / "loose.gpkg", loose=True)
             assert a == b
@@ -150,16 +160,19 @@ def run_acceptance(zip_label, loose_label, invalid_label):
         assert not json.loads(request(path + "/validate", "POST"))["can_process"]
         request(path, "DELETE")
     print("Browser ZIP and staged LOG/MP4 upload, photo navigation, GIS export, GDAL interoperability, equivalence, auth, publication and malformed input checks passed.")
+    if not compose_project:
+        print("Set STREETVIEW_ACCEPTANCE_COMPOSE_PROJECT to explicitly select a restart target.")
+        return
     photo = request(media)
-    subprocess.run(["docker", "compose", "-f", "deploy/compose.yaml", "restart"], cwd=root, check=True)
-    subprocess.run(["docker", "compose", "-f", "deploy/compose.yaml", "up", "-d", "--wait"],
+    subprocess.run([*compose, "restart"], cwd=root, check=True)
+    subprocess.run([*compose, "up", "-d", "--wait"],
                    cwd=root, check=True)
     assert request(media) == photo
     survey_path = media.split("/runs/")[0]
     prior = json.loads(request(survey_path))["jobs"][0]
     repeat = json.loads(request(survey_path + "/process", "POST", b"{}", expected=202))
     assert repeat["id"] == prior["id"] and repeat["state"] == "completed"
-    subprocess.run(["docker", "compose", "-f", "deploy/compose.yaml", "stop", "worker"],
+    subprocess.run([*compose, "stop", "worker"],
                    cwd=root, check=True)
     try:
         changed = b'{"sampling":"time","interval":2}'
@@ -170,7 +183,7 @@ def run_acceptance(zip_label, loose_label, invalid_label):
         retry = json.loads(request(survey_path + "/process", "POST", changed, expected=202))
         assert retry["id"] != job["id"]
     finally:
-        subprocess.run(["docker", "compose", "-f", "deploy/compose.yaml", "start", "worker"],
+        subprocess.run([*compose, "start", "worker"],
                        cwd=root, check=True)
     deadline = time.monotonic() + 90
     while time.monotonic() < deadline:

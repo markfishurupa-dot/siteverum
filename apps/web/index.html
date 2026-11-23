@@ -3,20 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>StreetView</title>
+<title>SiteVerum</title>
 <link rel="stylesheet" href="/static/vendor/leaflet.css">
 <link rel="stylesheet" href="/static/style.css">
 <script defer src="/static/vendor/leaflet.js"></script>
 <script defer src="/static/viewer.js"></script>
 <script defer src="/static/app.js"></script>
+<script defer src="/static/modules.js"></script>
+<script defer src="/static/module-publication.js"></script>
 </head>
 <body>
-<header><h1>StreetView</h1><span>Local survey workspace</span></header>
+<header class="workspace-header">
+  <h1>SiteVerum</h1><span>Local survey workspace</span>
+  <button id="portal-logout" type="button">Log out</button>
+</header>
 <main>
 <aside>
   <form id="create"><label for="label">New survey</label><input id="label" required maxlength="120" placeholder="Survey name"><button>Create survey</button></form>
+  <nav aria-label="Administration"><button id="modules-open" aria-haspopup="dialog">Modules</button></nav>
   <h2>Surveys</h2><ul id="catalog"></ul>
-  <footer class="sidebar-footer"><button id="about-open" aria-haspopup="dialog">About StreetView</button></footer>
+  <footer class="sidebar-footer"><button id="about-open" aria-haspopup="dialog">About SiteVerum</button></footer>
 </aside>
 <section>
 <p id="message" role="status">Select or create a survey.</p>
@@ -62,13 +68,83 @@
   <div id="results" hidden>
     <p class="map-help">Select a photo point to view GPS details or edit its position.</p>
     <div class="viewer">
-      <div id="map" aria-label="Survey map"></div>
+      <div id="map" aria-label="Survey map" tabindex="0"></div>
       <figure><img id="photo" alt="Survey photograph"><figcaption id="caption"></figcaption>
         <button id="previous">Previous photo</button> <button id="next">Next photo</button> <a id="download-photo" download>Download photo</a>
       </figure>
     </div>
+    <div id="module-feature" class="module-feature" aria-label="Module feature details" hidden></div>
     <nav id="downloads" aria-label="Survey downloads"></nav>
   </div>
+  <section id="additional-processing" class="additional-processing" aria-labelledby="module-heading" hidden>
+    <h3 id="module-heading">Additional Processing</h3>
+    <form id="module-configuration">
+      <label>Module and version <select id="module-choice"></select></label>
+      <div id="pole-model-options" class="module-inline" hidden>
+        <label>YOLO model <select id="pole-model-choice"></select></label>
+        <button id="pole-model-add" type="button">Add model</button>
+      </div>
+      <ul id="module-parameters" class="module-settings"></ul>
+      <details id="module-advanced-settings" hidden>
+        <summary>Advanced settings</summary>
+        <ul id="module-advanced" class="module-settings"></ul>
+      </details>
+      <div id="module-temporary-option" hidden>
+        <div class="module-inline">
+          <label><input type="checkbox" id="module-temporary" checked> Keep results temporary</label>
+          <button id="module-temporary-info" class="info-button" type="button" aria-label="About temporary results" aria-haspopup="dialog" aria-controls="module-temporary-help">i</button>
+        </div>
+      </div>
+      <button id="module-run" disabled>Run module</button>
+    </form>
+    <p id="module-status" role="status"></p>
+    <ul id="module-runs"></ul>
+    <div id="module-result" hidden>
+      <h3 id="module-result-title"></h3>
+      <dl id="module-result-summary" class="module-result-summary"></dl>
+      <p id="module-temporary-notice" class="temporary-layer-notice" hidden></p>
+      <ul id="module-warnings"></ul>
+      <div id="module-layer-controls" hidden>
+        <ul class="module-settings">
+          <li><label><span>Result layer</span><select id="module-layer"></select></label></li>
+          <li><label><span id="module-layer-label">Show layer on map</span><input id="module-layer-show" type="checkbox"></label></li>
+          <li id="module-pole-filters" hidden>
+            <ul class="module-settings module-settings-nested">
+              <li><label><span>Pole class</span><select id="module-class">
+                <option value="">All classes</option><option value="pole_beton">Concrete</option><option value="pole_generic">Generic</option>
+                <option value="pole_metal">Metal</option><option value="pole_wood">Wood</option>
+              </select></label></li>
+              <li><label><span>Minimum detection confidence</span><input id="module-confidence" type="number" min="0" max="1" step="0.05" value="0"></label></li>
+            </ul>
+          </li>
+          <li><label><span>Review status</span><select id="module-review">
+            <option value="">All statuses</option><option value="pending">Pending</option>
+            <option value="approved">Approved</option><option value="rejected">Rejected</option>
+          </select></label></li>
+          <li id="module-rays-control" hidden><label><span>Show detection rays</span><input id="module-rays" type="checkbox"></label></li>
+          <li><label><span>Export approved only</span><input id="module-approved-export" type="checkbox"></label></li>
+        </ul>
+        <p id="module-legend" class="module-legend" hidden>C Concrete · G Generic · M Metal · W Wood</p>
+        <p id="module-layer-count"></p>
+        <button id="module-add-pole" type="button" hidden>Add Pole</button>
+        <button id="module-more" type="button" hidden>Load more features</button>
+        <nav id="module-exports" aria-label="Reviewed GIS exports"></nav>
+      </div>
+      <details><summary>Execution files</summary><nav id="module-artifacts" aria-label="Execution files"></nav></details>
+    </div>
+    <button id="module-go-to-map" type="button">Go to Map</button>
+  </section>
+  <details id="module-publication-settings" hidden>
+    <summary>Publication privacy and module layers</summary>
+    <div class="module-fields">
+      <label>Photo privacy policy <select id="privacy-module"></select></label>
+      <button type="button" id="save-privacy">Save privacy policy</button>
+      <label id="privacy-derivative-label" hidden>Derivative run <select id="privacy-derivative"></select></label>
+      <label id="publish-module-layers-label" hidden>Publish approved features from
+        <select id="publish-module-layers" multiple size="3"></select>
+      </label>
+    </div>
+  </details>
   <div class="publication-controls">
     <label id="layers-control" hidden>Published map layers <select id="publish-layers">
       <option value="both">Route and photo points</option>
@@ -90,9 +166,63 @@
 </div>
 </section>
 </main>
+<dialog id="module-manager" aria-labelledby="module-manager-title">
+  <div class="about-heading">
+    <h2 id="module-manager-title">Modules</h2>
+    <form method="dialog"><button autofocus>Close</button></form>
+  </div>
+  <form id="module-install">
+    <label>Trusted module ZIP <input id="module-zip" type="file" accept=".zip" required></label>
+    <button>Install ZIP</button>
+  </form>
+  <p id="module-manager-status" role="status"></p>
+  <div id="module-versions"></div>
+</dialog>
+<dialog id="module-log-dialog" aria-labelledby="module-log-title">
+  <h2 id="module-log-title">Execution log</h2>
+  <pre id="module-log"></pre>
+  <form method="dialog"><button autofocus>Close</button></form>
+</dialog>
+<dialog id="pole-model-dialog" aria-labelledby="pole-model-title">
+  <h2 id="pole-model-title">Add YOLO model</h2>
+  <p>Upload a trusted Ultralytics object detection checkpoint. Choose which model to use before starting a run.</p>
+  <form id="pole-model-upload" class="module-dialog-form">
+    <label>Checkpoint <input id="pole-model-file" type="file" accept=".pt" required></label>
+    <label>Label mapping (optional)
+      <textarea id="pole-model-labels" rows="3" maxlength="4096" placeholder='{"utility_pole":"pole_generic"}'></textarea>
+    </label>
+    <p>Map your checkpoint’s labels to pole_beton, pole_generic, pole_metal, or pole_wood. These four labels work automatically.</p>
+    <p id="pole-model-status" role="status"></p>
+    <button type="submit">Upload model</button>
+  </form>
+  <form method="dialog"><button>Close</button></form>
+</dialog>
+<dialog id="manual-pole-dialog" aria-labelledby="manual-pole-title">
+  <h2 id="manual-pole-title">Add pole</h2>
+  <form id="manual-pole-form" class="module-dialog-form">
+    <label>Pole class <select id="manual-pole-class">
+      <option value="pole_generic">Generic</option><option value="pole_beton">Concrete</option>
+      <option value="pole_metal">Metal</option><option value="pole_wood">Wood</option>
+    </select></label>
+    <div class="pole-coordinates">
+      <label title="Longitude in degrees">X <input id="manual-pole-lon" type="number" required step="any" min="-180" max="180"></label>
+      <label title="Latitude in degrees">Y <input id="manual-pole-lat" type="number" required step="any" min="-90" max="90"></label>
+    </div>
+    <p id="manual-pole-status" role="status"></p>
+    <button type="button" id="manual-pole-pick">Pick location on map</button>
+    <button type="submit">Save pole</button>
+  </form>
+  <form method="dialog"><button>Cancel</button></form>
+</dialog>
+<dialog id="module-temporary-help" aria-labelledby="module-temporary-help-title">
+  <h2 id="module-temporary-help-title">Keep results temporary</h2>
+  <p><strong>Checked</strong> Results expire after 24 hours. Review edits stay in this browser tab. Download GeoJSON to keep your edits.</p>
+  <p><strong>Unchecked</strong> SiteVerum saves results and review edits so you can return to them later, export them, or publish approved features.</p>
+  <form method="dialog"><button autofocus>Close</button></form>
+</dialog>
 <dialog id="upload-help" aria-labelledby="upload-help-title">
   <h2 id="upload-help-title">Supported recording files</h2>
-  <p>Choose the ZIP exported from the StreetView mobile app, or choose the matching MP4 video and GPS LOG from the same recording. You can upload the matching files together or one at a time.</p>
+  <p>Choose the ZIP exported from the SiteVerum mobile app, or choose the matching MP4 video and GPS LOG from the same recording. You can upload the matching files together or one at a time.</p>
   <form method="dialog"><button autofocus>Close</button></form>
 </dialog>
 <dialog id="delete-confirmation" aria-labelledby="delete-confirmation-title" aria-describedby="delete-confirmation-text">
@@ -106,10 +236,11 @@
 </dialog>
 <dialog id="about" aria-labelledby="about-title">
   <div class="about-heading">
-    <div><h2 id="about-title">About StreetView</h2><p id="about-version"></p></div>
+    <div><h2 id="about-title">About SiteVerum</h2><p id="about-version"></p></div>
     <form method="dialog"><button aria-label="Close About" autofocus>Close</button></form>
   </div>
-  <p>StreetView turns GPS-tagged video into an interactive survey map with georeferenced photos and GIS exports.</p>
+  <p>SiteVerum turns GPS-tagged video into an interactive survey map with georeferenced photos and GIS exports.</p>
+  <p><a href="https://github.com/markfishurupa-dot/streetview-v2/releases/download/v2.1.0/SiteVerum-1.3.1.apk">Download SiteVerum Android 1.3.1</a> · <a href="https://markfishurupa-dot.github.io/streetview-v2/start/android/">Android capture guide</a></p>
   <p>Copyright 2026 Mark Urupa. Licensed under the <a href="/license" target="_blank" rel="noopener noreferrer">GNU Affero General Public License, version 3</a>. This software is provided without warranty.</p>
   <p>Created and designed by <a href="https://www.linkedin.com/in/mark-urupa/" target="_blank" rel="noopener noreferrer">Mark Urupa</a>.</p>
 </dialog>
