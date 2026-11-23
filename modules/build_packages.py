@@ -12,9 +12,10 @@ args = parser.parse_args()
 args.output.mkdir(exist_ok=True, parents=True)
 for name in ("survey-qa", "poles-detection"):
     base = root / name
-    if not base.is_dir():
+    manifest_path = base / "manifest.yaml"
+    if not manifest_path.is_file():
         continue
-    manifest = (base / "manifest.yaml").read_text(encoding="utf-8")
+    manifest = manifest_path.read_text(encoding="utf-8")
     version = re.search(r'(?m)^\s*"?version"?\s*:\s*"?([0-9]+\.[0-9]+\.[0-9]+)', manifest).group(1)
     target = args.output / f"streetview-{name}-{version}.zip"
     files = {path.relative_to(base).as_posix(): path for path in base.rglob("*")
