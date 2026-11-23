@@ -5,11 +5,21 @@ let validationPending;
 const accuracy = () => $("accuracy").value === "" ? null : Number($("accuracy").value);
 const root = "/api/v2";
 const base = () => root + "/surveys/" + survey;
+const sessionChannel = typeof BroadcastChannel === "function" ? new BroadcastChannel("siteverum-session") : null;
+const goToLogin = () => location.replace("/auth/login");
+
+sessionChannel?.addEventListener("message", event => {
+  if (event.data === "logout") goToLogin();
+});
+window.addEventListener("pageshow", event => {
+  if (event.persisted) location.reload();
+});
 
 async function api(path, method = "GET", data) {
   const response = await fetch(path, {method, headers: {"X-StreetView-Request":"1", "Content-Type":"application/json"},
     body: data === undefined ? undefined : JSON.stringify(data)});
   if (!response.ok) {
+    if (response.status === 401) goToLogin();
     const error = await response.json().catch(() => ({}));
     throw Error(typeof error.detail === "string" ? error.detail : "Request failed (" + response.status + ")");
   }
@@ -22,6 +32,18 @@ function action(fn) {
     catch (error) { $("message").textContent = error.message; }
   };
 }
+$("portal-logout").onclick = action(async () => {
+  const logout = $("portal-logout");
+  logout.disabled = true;
+  try {
+    await api(root + "/session/logout", "POST");
+    sessionChannel?.postMessage("logout");
+    goToLogin();
+  } finally {
+    logout.disabled = false;
+  }
+});
+
 function validationMessage(message) {
   const labels = {
     GPS_LOW_ACCURACY: "Low GPS accuracy",
@@ -78,6 +100,7 @@ async function catalog() {
 async function select(id) {
   survey = id;
   shownRun = null;
+  modulePortal.detach();
   selectedRecording = "primary";
   if (viewer) viewer.map.closePopup();
   $("sampling").value = "gps_fix";
@@ -133,6 +156,7 @@ async function refresh() {
   const latest = row.jobs[0];
   const active = latest && ["queued","running"].includes(latest.state);
   const ready = row.jobs.find(job => job.state === "completed");
+  window.publicationControls?.surveyChanged(row, ready?.id);
   const included = selectedRecording === "primary" ||
     ready?.metadata?.recordings?.some(item => item.recording === selectedRecording);
   $("upload").hidden = !!ready && !!included;
@@ -273,6 +297,7 @@ $("confirm-delete").onclick = async () => {
       survey = null;
       current = null;
       $("survey").hidden = true;
+      modulePortal.detach();
       $("message").textContent = "Survey deleted.";
     }
     await catalog();
@@ -287,7 +312,8 @@ function publicationSettings() {
   return {
     layers: $("publish-layers").value,
     default_basemap: $("publish-basemap").value,
-    publicly_available: $("publish-public").checked
+    publicly_available: $("publish-public").checked,
+    ...window.publicationControls?.settings()
   };
 }
 $("publication").onclick = action(async () => {
@@ -304,7 +330,7 @@ $("about-open").onclick = () => $("about").showModal();
 action(async () => {
   const info = await api(root + "/version");
   $("about-open").textContent = "Version " + info.version;
-  $("about-version").textContent = "Private alpha | " + info.version;
+  $("about-version").textContent = "Version " + info.version;
 })();
 const artifact = (job, name) => base() + "/runs/" + job + "/" + name;
 async function showRun(job, requested, isEdit) {
@@ -327,6 +353,7 @@ async function showRun(job, requested, isEdit) {
   });
   viewer.load(data, route, name => artifact(job, name), isEdit && viewer.survey === requested);
   viewer.survey = requested;
+  modulePortal.attach(base(), job, viewer).catch(error => { $("module-status").textContent = error.message; });
   const settings = current.jobs.find(item => item.id === job)?.settings;
   if (settings && firstView) {
     $("sampling").value = settings.sampling;

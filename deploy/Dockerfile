@@ -11,6 +11,6 @@ COPY services/ services/
 COPY apps/web/ apps/web/
 COPY --from=leaflet /tmp/vendor/package/dist/ apps/web/vendor/
 COPY --from=leaflet /tmp/vendor/package/LICENSE apps/web/vendor/LICENSE
-RUN useradd -u 10001 -m streetview && mkdir -p /media/streetview && chown streetview:streetview /media/streetview
+RUN useradd -u 10001 -m streetview && mkdir -p /media/streetview /inbox /outbox && chown streetview:streetview /media/streetview /inbox /outbox
 USER streetview
 CMD ["python", "-m", "uvicorn", "api:app", "--app-dir", "services", "--host", "0.0.0.0", "--port", "8000"]

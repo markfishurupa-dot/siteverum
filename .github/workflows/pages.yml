@@ -1,4 +1,3 @@
-# Prepared only. Rename and review permissions when the owner approves Pages deployment.
 name: Deploy documentation
 on:
   workflow_dispatch:

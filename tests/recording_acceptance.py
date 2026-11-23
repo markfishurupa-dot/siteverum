@@ -9,6 +9,7 @@ from uuid import uuid4
 from zipfile import ZipFile
 
 from playwright.sync_api import expect, sync_playwright
+from portal_browser import sign_in
 import pyogrio
 
 from compose_acceptance import base, browser_import, fixture, password, request
@@ -45,7 +46,7 @@ def main():
             browser = pw.chromium.launch(channel="msedge")
             context = browser.new_context(http_credentials={"username": "admin", "password": password})
             page = context.new_page()
-            page.goto(base)
+            sign_in(page, base, password)
             browser_import(page, label, fixture, folder / "original.gpkg")
             old_photo = page.locator("#photo").get_attribute("src")
             old_photo_bytes = request(old_photo)
@@ -106,7 +107,7 @@ def main():
 
             version = json.loads(request("/api/v2/version"))["version"]
             page.get_by_role("button", name=f"Version {version}").click()
-            dialog = page.get_by_role("dialog", name="About StreetView")
+            dialog = page.get_by_role("dialog", name="About SiteVerum")
             expect(dialog).to_be_visible()
             expect(dialog.get_by_role("link", name="Mark Urupa")).to_have_attribute(
                 "href", "https://www.linkedin.com/in/mark-urupa/")

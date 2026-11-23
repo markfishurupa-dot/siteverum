@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in | SiteVerum</title>
+<link rel="stylesheet" href="/static/style.css">
+<script defer src="/static/login.js"></script>
+</head>
+<body>
+<header><h1>SiteVerum</h1><span>Local survey workspace</span></header>
+<main class="login-main">
+  <section aria-labelledby="login-title">
+    <h2 id="login-title">Sign in</h2>
+    <form id="login-form" method="post">
+      <label>Username <input name="username" autocomplete="username" value="admin" required></label>
+      <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+      <button type="submit">Sign in</button>
+    </form>
+    <p id="login-status" role="alert"></p>
+  </section>
+</main>
+</body>
+</html>

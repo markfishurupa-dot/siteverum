@@ -99,9 +99,9 @@ class ZipSessionWorker(
     private fun createForegroundInfo(baseName: String): ForegroundInfo {
         createChannelIfNeeded()
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("StreetView")
-            .setContentText("Archiving $baseName…")
+            .setSmallIcon(R.drawable.ic_siteverum_launcher_monochrome)
+            .setContentTitle(applicationContext.getString(R.string.archive_notification_title))
+            .setContentText(baseName)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setProgress(0, 0, true) // indeterminate
@@ -123,7 +123,7 @@ class ZipSessionWorker(
             val nm = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             val ch = NotificationChannel(
                 CHANNEL_ID,
-                "StreetView Archiving",
+                applicationContext.getString(R.string.archive_notification_channel),
                 NotificationManager.IMPORTANCE_LOW
             )
             nm.createNotificationChannel(ch)

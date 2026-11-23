@@ -1,6 +1,6 @@
 # SiteVerum rebranding and compatibility guide
 
-**Status:** Prepared in `feature/siteverum-rebranding`. Repository rename, Pages deployment, tests, new signed APK, and release are not performed by this branch.
+**Status:** SiteVerum 2.1 uses the existing GitHub repository and Pages address. A repository rename is a separate migration.
 
 ## Name and project history
 
@@ -30,7 +30,7 @@
 
 5. Verify old repository and clone links redirect. Do not recreate a new repository at `streetview-v2`, as this could break redirects.
 
-GitHub Pages project sites are **not redirected** on repository rename. The docs are configured for `https://markfishurupa-dot.github.io/siteverum/`; publish/reconfigure Pages from the new repository, verify routes, and update any external links and QR codes. If legacy Pages links are in circulation, consider a dedicated redirect/static forwarding project without reusing the renamed repository path.
+GitHub Pages project sites are **not redirected** on repository rename. After renaming, change the documentation base to `/siteverum`, reconfigure Pages, verify routes, and update external links and QR codes. If legacy Pages links are in circulation, consider a dedicated redirect/static forwarding project without reusing the renamed repository path.
 
 ## Build and release verification
 

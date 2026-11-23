@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">SiteVerum</string>
+    <string name="recording_notification_channel">SiteVerum recording</string>
+    <string name="recording_notification_title">Field recording</string>
+    <string name="archive_notification_title">Archiving recording…</string>
+    <string name="archive_notification_channel">Recording archives</string>
 </resources>

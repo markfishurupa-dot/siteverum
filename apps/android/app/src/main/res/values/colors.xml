@@ -4,5 +4,17 @@
     <color name="sv_orange_dark">#E86F00</color>
     <color name="sv_dark_blue">#0B2B3A</color>
     <color name="sv_bg">#F6F7F9</color>
+    <color name="field_navy">#0B2B3C</color>
+    <color name="field_ink">#102A43</color>
+    <color name="field_blue">#1565C0</color>
+    <color name="field_orange">#FF8200</color>
+    <color name="field_orange_dark">#A64400</color>
+    <color name="field_background">#F5F7FA</color>
+    <color name="field_surface">#FFFFFF</color>
+    <color name="field_secondary">#58677D</color>
+    <color name="field_border">#DCE4EE</color>
+    <color name="field_success">#2DBE60</color>
+    <color name="field_blue_tint">#E8F0FB</color>
+    <color name="field_contour">#D6E4F9</color>
 </resources>
 

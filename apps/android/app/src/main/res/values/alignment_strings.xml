@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alignment_title">Camera alignment</string>
+    <string name="alignment_back">Back</string>
+    <string name="alignment_portrait">Portrait</string>
+    <string name="alignment_landscape">Landscape</string>
+    <string name="alignment_tip">Keep the horizon close to the guide line.</string>
+    <string name="alignment_opening">Starting camera preview…</string>
+    <string name="alignment_permission">Allow camera access in system settings to use the preview.</string>
+    <string name="alignment_unavailable">Camera preview is unavailable.</string>
+    <string name="alignment_retry">Retry</string>
+    <string name="alignment_aim">Aim the camera to capture the street clearly.</string>
+    <string name="alignment_horizon">Recommended horizon</string>
+    <string name="alignment_back_when_aligned">Press Back when aligned</string>
+</resources>

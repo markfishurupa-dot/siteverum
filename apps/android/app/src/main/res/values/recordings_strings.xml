@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="recordings_title">Recordings</string>
+    <string name="recordings_subtitle">Local survey captures</string>
+    <string name="recordings_back">Back</string>
+    <string name="recordings_empty">No recordings yet.</string>
+    <string name="recordings_options">Options for %1$s</string>
+    <string name="recordings_view_data">View data</string>
+    <string name="recordings_video_missing">Video missing</string>
+    <string name="recordings_open_log">Open log</string>
+    <string name="recordings_log_missing">Log missing</string>
+    <string name="recordings_share">Share</string>
+    <string name="recordings_files_missing">Files missing</string>
+    <string name="recordings_archive_zip">Archive (ZIP)</string>
+    <string name="recordings_archiving">Archiving…</string>
+    <string name="recordings_archived_zip">Archived (ZIP)</string>
+    <string name="recordings_share_zip">Share ZIP</string>
+</resources>

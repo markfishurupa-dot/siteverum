@@ -1,11 +1,12 @@
-# Unreleased - SiteVerum rebranding
-
-- Adopt **SiteVerum** as the public product and documentation identity (formerly StreetView v2.0).
-- Keep existing `SV_` recording filenames, `SV_*` environment variables, Android application ID, survey APIs, database schema, and existing Docker Compose identity for compatibility.
-- Keep historical `StreetView.apk` and release `v2.0.0-alpha.6` unchanged. This branch does not distribute a new signed APK.
-- Prepare for the GitHub repository rename and documentation project-path migration. See `docs/siteverum-rebranding.md`.
-
 # Changelog
+
+## 2.1.0
+
+- Release the SiteVerum-branded portal with installable processing modules, survey-specific execution history, map review and GIS exports.
+- Add temporary map layers, review and manual entry for electrical poles, and support for custom YOLO checkpoints and label mappings.
+- Add portal logout and fit the published map and survey photos to the browser viewport.
+- Release the SiteVerum Android 1.3.1 source and signed APK. Update the capture guide with the redesigned screens and camera alignment for road or pole surveys.
+- Document Survey QA, Electrical Poles Detection, and how to develop and install custom modules.
 
 ## Unreleased
 

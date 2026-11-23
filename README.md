@@ -10,7 +10,7 @@ Capture on Android → Upload → Validate → Process → Explore → Export.
 
 SiteVerum is an **open-source, self-hosted street-imagery workflow** for road surveys, infrastructure documentation, project planning, and construction supervision. Survey data stays in your own Docker installation unless you deliberately expose a published map or share exports. This project is not affiliated with Google Street View.
 
-**[Try the interactive demo](https://markfishurupa-dot.github.io/siteverum/demo/)** · **[Read the documentation](https://markfishurupa-dot.github.io/siteverum/)** · **[Process your first survey](https://markfishurupa-dot.github.io/siteverum/guide/first-survey/)**
+**[Try the interactive demo](https://markfishurupa-dot.github.io/streetview-v2/demo/)** · **[Read the documentation](https://markfishurupa-dot.github.io/streetview-v2/)** · **[Process your first survey](https://markfishurupa-dot.github.io/streetview-v2/guide/first-survey/)**
 
 The demo is read-only. To upload videos and run processing, install the portal locally.
 
@@ -32,8 +32,8 @@ Multiple recordings can be combined into one survey while retaining separate rou
 You need Git and Docker Desktop running **Linux containers** on Windows. From PowerShell:
 
 ```powershell
-git clone https://github.com/markfishurupa-dot/siteverum.git
-cd siteverum
+git clone https://github.com/markfishurupa-dot/streetview-v2.git
+cd streetview-v2
 .\setup.ps1
 ```
 
@@ -41,32 +41,36 @@ Open **http://127.0.0.1:18080/**. Sign in as `admin` using the `SV_ADMIN_PASSWOR
 
 On Linux, the repository also includes `bash ./setup.sh`; native-Linux clean-install validation is still pending.
 
-**[Full Windows/Linux installation guide](https://markfishurupa-dot.github.io/siteverum/start/install/)** includes troubleshooting, storage, and stop/restart instructions. The default installation binds to the host loopback interface, not the public Internet.
+**[Full Windows/Linux installation guide](https://markfishurupa-dot.github.io/streetview-v2/start/install/)** includes troubleshooting, storage, and stop/restart instructions. The default installation binds to the host loopback interface, not the public Internet.
+
+## Processing modules
+
+SiteVerum 2.1 adds installable ZIP modules, survey quality reports and map review for detection results. The module-enabled Windows setup uses port 18090. See the [illustrated module guides](https://markfishurupa-dot.github.io/streetview-v2/modules/), [operator guide](docs/modular-processing.md) and [module contract](docs/contracts/streetview-module-api-v1.md).
 
 ## Capture and process your first survey
 
-1. **Android app:** Follow the [Android capture guide](https://markfishurupa-dot.github.io/siteverum/start/android/). The Android 1.3.0 **source** is available in [`apps/android`](apps/android). The signed Android 1.3.0 APK is available in the [v2.0.0-alpha.6 GitHub release](https://github.com/markfishurupa-dot/siteverum/releases/tag/v2.0.0-alpha.6). **[Download SiteVerum.apk](https://github.com/markfishurupa-dot/siteverum/releases/download/v2.0.0-alpha.6/StreetView.apk)**, then follow the [Android installation and capture guide](https://markfishurupa-dot.github.io/siteverum/start/android/). Check the [verified SHA-256 digest](docs/apk-v1.3.0-verification.md) before installing.
+1. **Android app.** Follow the [Android capture guide](https://markfishurupa-dot.github.io/streetview-v2/start/android/). [Download the signed SiteVerum Android 1.3.1 APK](https://github.com/markfishurupa-dot/streetview-v2/releases/download/v2.1.0/SiteVerum-1.3.1.apk) or browse the [Android source](apps/android).
 2. **Record and transfer:** Capture a survey and share its ZIP, or the matching MP4 and LOG with identical basenames.
 3. **Create and upload:** In the portal, create a survey, then upload the source files. The two files can also be uploaded at different times.
 4. **Validate and process:** Review the GPS report; choose GPS-fix, time, or distance sampling; start processing.
 5. **Explore and export:** Navigate georeferenced photos, correct points if necessary, and download `survey.zip` or individual GIS files.
 6. **Publish optionally:** A published map is read-only. **Publicly available** means anyone who can reach your server can view the selected publication without signing in; it does *not* automatically expose localhost to the Internet.
 
-Follow the [illustrated first-survey walkthrough](https://markfishurupa-dot.github.io/siteverum/guide/first-survey/) for the full process.
+Follow the [illustrated first-survey walkthrough](https://markfishurupa-dot.github.io/streetview-v2/guide/first-survey/) for the full process.
 
 ## Documentation and project status
 
 | Resource | Purpose |
 | --- | --- |
-| [Live demo](https://markfishurupa-dot.github.io/siteverum/demo/) | Explore a sample route and photos without installation |
-| [Installation](https://markfishurupa-dot.github.io/siteverum/start/install/) | Windows, Linux, credentials, Docker troubleshooting |
-| [Android APK - 1.3.0](https://github.com/markfishurupa-dot/siteverum/releases/download/v2.0.0-alpha.6/StreetView.apk) | Download the signed Android capture app |
-| [Android guide](https://markfishurupa-dot.github.io/siteverum/start/android/) | Install, record and export a survey |
-| [Publishing](https://markfishurupa-dot.github.io/siteverum/guide/publishing/) | Read-only access, authentication, and network exposure |
-| [Development guide](https://markfishurupa-dot.github.io/siteverum/reference/development/) | Local tests, API and architecture |
+| [Live demo](https://markfishurupa-dot.github.io/streetview-v2/demo/) | Explore a sample route and photos without installation |
+| [Installation](https://markfishurupa-dot.github.io/streetview-v2/start/install/) | Windows, Linux, credentials, Docker troubleshooting |
+| [SiteVerum 2.1 release](https://github.com/markfishurupa-dot/streetview-v2/releases/tag/v2.1.0) | Portal source, module downloads, and the signed Android APK |
+| [Android guide](https://markfishurupa-dot.github.io/streetview-v2/start/android/) | Install, record and export a survey |
+| [Publishing](https://markfishurupa-dot.github.io/streetview-v2/guide/publishing/) | Read-only access, authentication, and network exposure |
+| [Development guide](https://markfishurupa-dot.github.io/streetview-v2/reference/development/) | Local tests, API and architecture |
 | [Release checklist](docs/public-release-checklist.md) | Verified features and remaining acceptance items |
 
-**Field testing and support:** The owner tested the complete workflow in two field tests, recording and processing six survey sessions (routes). The mobile app and portal worked as expected. Feedback can guide future improvements; additional features, custom development and installation support can be discussed privately with [Mark Urupa](https://www.linkedin.com/in/mark-urupa/). The [stable GitHub release](https://github.com/markfishurupa-dot/siteverum/releases/tag/v2.0.0-alpha.6) retains its original `v2.0.0-alpha.6` tag. No prebuilt GHCR portal image has been verified; optional ML/YOLO is not included.
+The project owner tested the survey workflow in two field tests covering six survey sessions. For installation support or custom development, contact [Mark Urupa](https://www.linkedin.com/in/mark-urupa/).
 
 **Privacy:** Survey photographs and GPS tracks can contain personal and sensitive location information. Obtain appropriate permission before recording and sharing. The [public demo dataset](site/public/demo/DATASET_LICENSE.md) has separate data-use terms from the software license.
 

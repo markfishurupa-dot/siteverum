@@ -1,0 +1,19 @@
+
+api: streetview-module-api/v1
+id: survey-qa
+name: Survey QA
+version: 1.0.0
+description: Summarize frame and bearing coverage for a processed survey.
+runtime: python
+stage: post_processing
+inputs: [processed_survey]
+outputs: [report]
+permissions: [read_input, write_output]
+gpu: none
+timeout_seconds: 60
+entrypoint: main.py
+parameters:
+  include_recordings:
+    type: boolean
+    default: true
+    description: Include per-recording frame totals.

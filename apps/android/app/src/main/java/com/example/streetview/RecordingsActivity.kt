@@ -6,32 +6,47 @@ import android.os.Bundle
 import android.os.Environment
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.clickable
+import androidx.annotation.StringRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Map
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
-import com.example.streetview.ui.theme.StreetViewTheme
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.example.streetview.ui.theme.FieldBackground
+import com.example.streetview.ui.theme.StreetViewTheme
+import com.example.streetview.ui.theme.enableFieldEdgeToEdge
 import java.io.File
 
 class RecordingsActivity : ComponentActivity() {
@@ -42,62 +57,115 @@ class RecordingsActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableFieldEdgeToEdge()
 
         setContent {
             StreetViewTheme {
-                val bg = Color(0xFFF6F7F9)
-                val darkBlue = Color(0xFF0B2B3A)
+                // Re-load sessions when background ZIP completes.
+                val sessions = remember(reloadToken) { loadSessions() }
 
-                // Re-load sessions when background ZIP completes
-                val token = reloadToken
-                val sessions by remember(token) { mutableStateOf(loadSessions()) }
-
-                Surface(modifier = Modifier.fillMaxSize(), color = bg) {
+                FieldBackground {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .statusBarsPadding()
-                            .navigationBarsPadding()
-                            .padding(16.dp)
+                            .windowInsetsPadding(
+                                WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+                            ),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            text = "Recordings",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = darkBlue,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        )
+                        RecordingsHeader(onBack = { onBackPressedDispatcher.onBackPressed() })
 
-                        if (sessions.isEmpty()) {
-                            Text("No recordings yet.", color = Color.Gray)
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                items(sessions) { s ->
-                                    val isArchiving = archivingState[s.baseName] == true
-                                    val hasZip = s.zip?.exists() == true
-                                    // Persistent marker: if the app was killed/restarted while WorkManager is running,
-                                    // we still show the UI as "Archiving…" and prevent double-trigger.
-                                    val hasPending = s.zipPending?.exists() == true
-                                    SessionCard(
-                                        title = s.baseName,
-                                        hasVideo = s.video != null,
-                                        hasLog = s.log != null,
-                                        isArchiving = isArchiving || hasPending,
-                                        hasZip = hasZip,
-                                        onOpenVideo = { s.video?.let { openFile(it, "video/mp4") } },
-                                        onOpenLog = { s.log?.let { openFile(it, "text/plain") } },
-                                        onShareFiles = { shareSessionFiles(s) },
-                                        onArchiveZip = { archiveSessionZipAsync(s) },
-                                        onShareZip = { shareZipFile(s) }
-                                    )
+                        val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
+                        LazyColumn(
+                            modifier = Modifier
+                                .widthIn(max = 680.dp)
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentPadding = PaddingValues(
+                                start = 16.dp,
+                                top = 12.dp,
+                                end = 16.dp,
+                                bottom = 16.dp + bottomInset
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            if (sessions.isEmpty()) {
+                                item {
+                                    OutlinedCard(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(16.dp),
+                                        colors = CardDefaults.outlinedCardColors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
+                                        ),
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.recordings_empty),
+                                            modifier = Modifier.padding(16.dp),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
+                            }
+                            items(sessions, key = { it.baseName }) { s ->
+                                val isArchiving = archivingState[s.baseName] == true
+                                val hasZip = s.zip?.exists() == true
+                                // The persistent marker prevents duplicate archives across app restarts.
+                                val hasPending = s.zipPending?.exists() == true
+                                SessionCard(
+                                    title = s.baseName,
+                                    hasVideo = s.video != null,
+                                    hasLog = s.log != null,
+                                    isArchiving = isArchiving || hasPending,
+                                    hasZip = hasZip,
+                                    onOpenVideo = { s.video?.let { openFile(it, "video/mp4") } },
+                                    onOpenLog = { s.log?.let { openFile(it, "text/plain") } },
+                                    onShareFiles = { shareSessionFiles(s) },
+                                    onArchiveZip = { archiveSessionZipAsync(s) },
+                                    onShareZip = { shareZipFile(s) }
+                                )
                             }
                         }
                     }
                 }
+            }
+        }
+    }
+
+    @Composable
+    private fun RecordingsHeader(onBack: () -> Unit) {
+        Row(
+            modifier = Modifier
+                .widthIn(max = 680.dp)
+                .fillMaxWidth()
+                .padding(start = 8.dp, top = 12.dp, end = 16.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.recordings_back),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f).padding(top = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.recordings_title),
+                    modifier = Modifier.semantics { heading() },
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = stringResource(R.string.recordings_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
@@ -143,6 +211,7 @@ class RecordingsActivity : ComponentActivity() {
         return byBase.values.sortedByDescending { it.baseName }
     }
 
+    @OptIn(ExperimentalLayoutApi::class)
     @Composable
     private fun SessionCard(
         title: String,
@@ -156,37 +225,51 @@ class RecordingsActivity : ComponentActivity() {
         onArchiveZip: () -> Unit,
         onShareZip: () -> Unit
     ) {
-        val darkBlue = Color(0xFF0B2B3A)
-        val orange = Color(0xFFFF7A00)
-
+        val colors = MaterialTheme.colorScheme
         val canShare = hasVideo || hasLog
+        var menuExpanded by remember { mutableStateOf(false) }
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp)
+        OutlinedCard(
+            modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(20.dp), spotColor = colors.onSurface.copy(alpha = 0.40f)),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.outlinedCardColors(containerColor = colors.surface),
+            border = BorderStroke(1.dp, colors.outlineVariant)
         ) {
-            Column(modifier = Modifier.padding(14.dp)) {
-                var menuExpanded by remember { mutableStateOf(false) }
-
+            Column(modifier = Modifier.padding(start = 12.dp, top = 8.dp, end = 8.dp, bottom = 10.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(title, fontWeight = FontWeight.Bold, color = darkBlue)
+                    BoxWithConstraints(Modifier.weight(1f).padding(start = 4.dp)) {
+                        val titleStyle = if (maxWidth < 228.dp) MaterialTheme.typography.titleMedium
+                            else MaterialTheme.typography.titleLarge
+                        Text(
+                            text = title,
+                            style = titleStyle,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.onSurface
+                        )
+                    }
 
                     Box {
                         IconButton(onClick = { menuExpanded = true }) {
-                            Icon(imageVector = Icons.Filled.MoreVert, contentDescription = "Options")
+                            Icon(
+                                imageVector = Icons.Filled.MoreVert,
+                                contentDescription = stringResource(R.string.recordings_options, title),
+                                tint = colors.onSurfaceVariant
+                            )
                         }
                         DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                             DropdownMenuItem(
                                 text = {
                                     Text(
-                                        when {
-                                            isArchiving -> "Archiving…"
-                                            hasZip -> "Archived (ZIP)"
-                                            else -> "Archive (ZIP)"
-                                        }
+                                        stringResource(
+                                            when {
+                                                isArchiving -> R.string.recordings_archiving
+                                                hasZip -> R.string.recordings_archived_zip
+                                                else -> R.string.recordings_archive_zip
+                                            }
+                                        )
                                     )
                                 },
                                 enabled = !isArchiving && !hasZip,
@@ -197,7 +280,7 @@ class RecordingsActivity : ComponentActivity() {
                             )
 
                             DropdownMenuItem(
-                                text = { Text("Share ZIP") },
+                                text = { Text(stringResource(R.string.recordings_share_zip)) },
                                 enabled = hasZip && !isArchiving,
                                 onClick = {
                                     menuExpanded = false
@@ -207,37 +290,60 @@ class RecordingsActivity : ComponentActivity() {
                         }
                     }
                 }
-                Spacer(Modifier.height(10.dp))
 
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(
-                        text = if (hasVideo) "🗺️ View data" else "🗺️ Missing",
-                        color = if (hasVideo) orange else Color.Gray,
-                        modifier = Modifier
-                            .clickable(enabled = hasVideo) { onOpenVideo() }
-                            .padding(vertical = 6.dp, horizontal = 8.dp)
+                    SessionAction(
+                        icon = Icons.Outlined.Map,
+                        label = if (hasVideo) R.string.recordings_view_data else R.string.recordings_video_missing,
+                        enabled = hasVideo,
+                        onClick = onOpenVideo
                     )
-
-                    Text(
-                        text = if (hasLog) "🧾 Open log" else "🧾 Missing",
-                        color = if (hasLog) orange else Color.Gray,
-                        modifier = Modifier
-                            .clickable(enabled = hasLog) { onOpenLog() }
-                            .padding(vertical = 6.dp, horizontal = 8.dp)
+                    SessionAction(
+                        icon = Icons.Outlined.Description,
+                        label = if (hasLog) R.string.recordings_open_log else R.string.recordings_log_missing,
+                        enabled = hasLog,
+                        onClick = onOpenLog
                     )
-
-                    Text(
-                        text = if (canShare) "📦 Share" else "📦 Missing",
-                        color = if (canShare) orange else Color.Gray,
-                        modifier = Modifier
-                            .clickable(enabled = canShare) { onShareFiles() }
-                            .padding(vertical = 6.dp, horizontal = 8.dp)
+                    SessionAction(
+                        icon = Icons.Outlined.Inventory2,
+                        label = if (canShare) R.string.recordings_share else R.string.recordings_files_missing,
+                        enabled = canShare,
+                        onClick = onShareFiles
                     )
                 }
             }
+        }
+    }
+
+    @Composable
+    private fun SessionAction(
+        icon: ImageVector,
+        @StringRes label: Int,
+        enabled: Boolean,
+        onClick: () -> Unit
+    ) {
+        TextButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier.heightIn(min = 48.dp),
+            colors = ButtonDefaults.textButtonColors(
+                contentColor = if (label == R.string.recordings_view_data) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.tertiary,
+                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
+            ),
+            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = if (enabled) MaterialTheme.colorScheme.primary else LocalContentColor.current
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(stringResource(label))
         }
     }
 

@@ -7,3 +7,7 @@ The alpha includes Android capture source and a self-hosted portal for importing
 The portal has one administrator and one processing worker. Docker Desktop with Linux amd64 containers has been exercised. Android physical-device capture, Linux installation, backup and restore, third-party redistribution, and final branding and privacy reviews remain release gates. The existing Android source builds a debug APK; release signing and APK distribution are pending.
 
 See [the release checklist](public-release-checklist.md) for verification evidence and outstanding owner decisions.
+
+## Modular processing feature branch
+
+The local development branch adds versioned ZIP installation, manual survey modules, pole evidence and review, reviewed GIS exports, and explicit publication of approved layers. The privacy framework supports validated image derivatives and fails closed when mandatory images are missing. See the [modular processing guide](modular-processing.md) for the isolated Windows setup.

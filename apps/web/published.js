@@ -18,9 +18,22 @@
     document.querySelector(".viewer").classList.toggle("route-only", routeOnly);
     document.querySelector("figure").hidden = routeOnly;
     document.getElementById("title").textContent = survey.label;
-    document.title = survey.label + " | StreetView";
+    document.title = survey.label + " | SiteVerum";
     document.getElementById("results").hidden = false;
-    new SurveyViewer({defaultBasemap: survey.default_basemap}).load(points, route, file);
+    const viewer = new SurveyViewer({defaultBasemap: survey.default_basemap});
+    viewer.load(points, route, file);
+    const overlays = {};
+    for (const item of survey.module_layers || []) {
+      const key = item.layer === "poles" ? "Electrical Poles" : item.layer;
+      const data = await load(publication + "/layers/" + item.run + "/" + encodeURIComponent(item.layer));
+      overlays[key] ??= L.layerGroup();
+      L.geoJSON(data, {
+        pointToLayer: (_feature, position) => L.circleMarker(position, {
+          radius: 7, color: "#55327f", fillColor: "#7139a1", fillOpacity: .85
+        })
+      }).addTo(overlays[key]);
+    }
+    if (Object.keys(overlays).length) L.control.layers(null, overlays, {collapsed: false}).addTo(viewer.map);
   } catch (error) {
     document.getElementById("message").textContent = error.message;
   }
