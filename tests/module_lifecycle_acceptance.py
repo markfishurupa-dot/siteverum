@@ -7,7 +7,7 @@ import time
 from uuid import uuid4
 
 from module_acceptance import make_survey, request, run_module, wait
-from module_fixtures import install_fixture
+from module_fixtures import disable_fixture, install_fixture
 
 
 def running_with_progress(run):
@@ -57,6 +57,7 @@ def main():
         print("Module progress, cancellation, empty results, failure, malformed output and both restart recoveries passed")
     finally:
         request(path, "DELETE")
+        disable_fixture(module)
 
 
 if __name__ == "__main__":

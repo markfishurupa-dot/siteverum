@@ -6,7 +6,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from module_acceptance import make_survey, request, run_module, wait
-from module_fixtures import fixture_zip, install_fixture
+from module_fixtures import disable_fixture, fixture_zip, install_fixture
 
 
 def main():
@@ -76,6 +76,8 @@ def main():
         print("Privacy policy, missing/failed/stale runs, direct routes, private sources and immutable snapshots passed")
     finally:
         request(path, "DELETE")
+        for module in (redaction, vector):
+            disable_fixture(module)
 
 
 if __name__ == "__main__":

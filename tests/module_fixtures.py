@@ -121,3 +121,9 @@ def fixture_zip(module, redaction=False, description="Deterministic local test m
 
 def install_fixture(module, redaction=False):
     return request("/api/v2/modules/install", "POST", fixture_zip(module, redaction), 201)
+
+
+def disable_fixture(module):
+    if any(item["module_id"] == module and item["version"] == "1.0.0"
+           for item in request("/api/v2/modules")):
+        request(f"/api/v2/modules/{module}/versions/1.0.0", "PATCH", {"enabled": False})

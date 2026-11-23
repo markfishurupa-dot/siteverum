@@ -14,7 +14,7 @@ from portal_browser import sign_in
 import pyogrio
 
 from module_acceptance import BASE, SETTINGS, make_survey, request
-from module_fixtures import fixture_zip
+from module_fixtures import disable_fixture, fixture_zip
 
 
 def main():
@@ -40,6 +40,8 @@ def main():
             page.locator("#module-manager").get_by_role("button", name="Close", exact=True).click()
             page.locator(f'[data-survey="{survey.rsplit("/", 1)[-1]}"]').click()
             expect(page.get_by_role("heading", name="Additional Processing")).to_be_visible()
+            expect(page.locator("#additional-processing")).not_to_have_attribute("open", "")
+            page.get_by_text("Additional Processing", exact=True).click()
             page.locator("#module-choice").select_option(module + "/1.0.0")
             page.locator('#module-parameters input[name=delay]').fill("4")
             expect(page.locator("#module-parameters > li")).to_have_count(2)
@@ -110,6 +112,7 @@ def main():
         print(f"Browser module ZIP, form, progress, layer, evidence, review, coordinates and GeoPackage download passed ({module})")
     finally:
         request(survey, "DELETE")
+        disable_fixture(module)
 
 
 def check_temporary_review(page, survey, source, module, original_lat):
