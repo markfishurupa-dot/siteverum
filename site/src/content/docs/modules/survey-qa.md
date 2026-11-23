@@ -9,12 +9,12 @@ Survey QA 1.0.0 summarizes the photos from a processed survey. It uses the surve
 
 ## Run the check
 
-1. Get `streetview-survey-qa-1.0.0.zip` from the [SiteVerum 2.1 release](https://github.com/markfishurupa-dot/streetview-v2/releases/tag/v2.1.0) or build it from the checkout. Choose **Modules → Install ZIP**.
+1. Get `streetview-survey-qa-1.0.0.zip` from the [SiteVerum 2.1 release](https://github.com/markfishurupa-dot/siteverum/releases/tag/v2.1.0) or build it from the checkout. Choose **Modules → Install ZIP**.
 2. Open a processed survey and select **Survey QA 1.0.0** under **Additional Processing**.
 3. Leave **Include per-recording frame totals** enabled to see how the extracted photos are distributed. Choose **Run module**, then **Open results**.
 4. Under **Execution files**, choose `qa_summary.json` to download the report.
 
-![Survey QA results showing frame totals, missing bearings and the JSON report download](/streetview-v2/images/modules/survey-qa-results.png)
+![Survey QA results showing frame totals, missing bearings and the JSON report download](/siteverum/images/modules/survey-qa-results.png)
 
 ## Read the report
 

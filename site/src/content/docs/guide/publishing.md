@@ -37,6 +37,6 @@ Survey photographs can include faces, vehicle plates and sensitive locations. Ob
 
 ## External map sharing is an advanced deployment
 
-To let users on another computer view the map, you must intentionally configure network routing to your SiteVerum host. This is not included in the default local setup. See [portal installation](/streetview-v2/start/install/) and your reverse proxy's documentation.
+To let users on another computer view the map, you must intentionally configure network routing to your SiteVerum host. This is not included in the default local setup. See [portal installation](/siteverum/start/install/) and your reverse proxy's documentation.
 
 Selecting **OpenStreetMap** requests basemap tiles from external tile servers and requires connectivity; the survey-only backdrop works without online map tiles.

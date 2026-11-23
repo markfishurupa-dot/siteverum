@@ -5,7 +5,7 @@ sidebar:
   order: 4
 ---
 
-Start with [Survey QA](https://github.com/markfishurupa-dot/streetview-v2/tree/v2.1.0/modules/survey-qa), a working example that reads processed survey metadata and writes a JSON report.
+Start with [Survey QA](https://github.com/markfishurupa-dot/siteverum/tree/v2.1.0/modules/survey-qa), a working example that reads processed survey metadata and writes a JSON report.
 
 ## Define the package
 
@@ -44,7 +44,7 @@ The runner invokes `python main.py <input-directory> <output-directory> <executi
 - For map review, declare a `vector` output and register an EPSG:4326 GeoJSON FeatureCollection. Give every feature a unique string ID and use longitude, latitude coordinate order. Evidence can reference the source frame sequence and the normalized bounding box on the exported image.
 - Print diagnostics to the execution log via standard output or standard error. Write an integer percentage to the path in `SV_MODULE_PROGRESS` to update the progress bar. Exit with a nonzero code on failure.
 
-See the [module API contract](https://github.com/markfishurupa-dot/streetview-v2/blob/v2.1.0/docs/contracts/streetview-module-api-v1.md) for the complete schema, model provisioning and publication options.
+See the [module API contract](https://github.com/markfishurupa-dot/siteverum/blob/v2.1.0/docs/contracts/streetview-module-api-v1.md) for the complete schema, model provisioning and publication options.
 
 ## Attach it to SiteVerum
 

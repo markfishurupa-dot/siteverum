@@ -6,7 +6,7 @@ The checkpoint and corresponding SiteVerum source are distributed under AGPL-3.0
 
 ## Download and use
 
-Download [`pole_yolo11s_best.pt`](https://github.com/markfishurupa-dot/streetview-v2/releases/download/v2.1.0/pole_yolo11s_best.pt). Its SHA-256 is `80f281ec613757df2934b258afa9b578ae074af16e7393b87cd2a1b33e283cb6`. It predicts `pole_beton` (concrete), `pole_generic`, `pole_metal` and `pole_wood`.
+Download [`pole_yolo11s_best.pt`](https://github.com/markfishurupa-dot/siteverum/releases/download/v2.1.0/pole_yolo11s_best.pt). Its SHA-256 is `80f281ec613757df2934b258afa9b578ae074af16e7393b87cd2a1b33e283cb6`. It predicts `pole_beton` (concrete), `pole_generic`, `pole_metal` and `pole_wood`.
 
 Place the checkpoint in `deploy/module-models/` for the default model, or upload it with **Add model** and choose it in **YOLO model**. The checkpoint provides per-photo detections. The SiteVerum module estimates map locations from multiple detections and uses the survey's camera and GPS information.
 

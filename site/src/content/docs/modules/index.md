@@ -29,6 +29,6 @@ Open **http://127.0.0.1:18090** and sign in as `admin` using the generated `SV_A
 
 ## Module guides
 
-- [Electrical Poles Detection](/streetview-v2/modules/electrical-poles/) estimates pole locations from photos and produces reviewable GIS features with evidence.
-- [Survey QA](/streetview-v2/modules/survey-qa/) reports frame totals, missing bearings, and optional counts by recording.
-- [Create and install a custom module](/streetview-v2/modules/create/) using the ZIP format and execution contract.
+- [Electrical Poles Detection](/siteverum/modules/electrical-poles/) estimates pole locations from photos and produces reviewable GIS features with evidence.
+- [Survey QA](/siteverum/modules/survey-qa/) reports frame totals, missing bearings, and optional counts by recording.
+- [Create and install a custom module](/siteverum/modules/create/) using the ZIP format and execution contract.

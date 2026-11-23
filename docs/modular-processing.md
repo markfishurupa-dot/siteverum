@@ -1,7 +1,7 @@
 
 # Modular processing
 
-SiteVerum administrators can install trusted modules, run them against processed surveys, and review and export results. See the [illustrated guides](https://markfishurupa-dot.github.io/streetview-v2/modules/) for module workflows and authoring steps.
+SiteVerum administrators can install trusted modules, run them against processed surveys, and review and export results. See the [illustrated guides](https://markfishurupa-dot.github.io/siteverum/modules/) for module workflows and authoring steps.
 
 ## Start the isolated Windows environment
 
@@ -27,7 +27,7 @@ Uploading the same archive again returns the existing version. If the package ha
 
 ### Electrical poles
 
-Download the [Electrical Poles Detection 1.1.0 package](https://github.com/markfishurupa-dot/streetview-v2/releases/download/v2.1.0/streetview-poles-detection-1.1.0.zip) and the [default YOLO11s pole checkpoint](https://github.com/markfishurupa-dot/streetview-v2/releases/download/v2.1.0/pole_yolo11s_best.pt). Put the checkpoint in the provisioned model directory. Replace `C:\path\to` with the directory containing your download.
+Download the [Electrical Poles Detection 1.1.0 package](https://github.com/markfishurupa-dot/siteverum/releases/download/v2.1.0/streetview-poles-detection-1.1.0.zip) and the [default YOLO11s pole checkpoint](https://github.com/markfishurupa-dot/siteverum/releases/download/v2.1.0/pole_yolo11s_best.pt). Put the checkpoint in the provisioned model directory. Replace `C:\path\to` with the directory containing your download.
 
 ```powershell
 New-Item -ItemType Directory -Force -Path deploy/module-models | Out-Null
