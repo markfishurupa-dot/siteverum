@@ -4,9 +4,9 @@
 
 Capture on Android → Upload → Validate → Process → Explore → Export.
 
-![SiteVerum workspace showing a processed survey](site/public/images/screenshots/viewer.png)
+![SiteVerum workspace concept showing a survey map, photos, processing modules and GIS exports](site/public/images/screenshots/siteverum-workspace-concept.png)
 
-*Actual SiteVerum portal screenshot captured with synthetic survey data. It is not a photograph of a real survey.*
+*SiteVerum 2.1 interface concept illustrating a survey workspace.*
 
 SiteVerum is an **open-source, self-hosted street-imagery workflow** for road surveys, infrastructure documentation, project planning, and construction supervision. Survey data stays in your own Docker installation unless you deliberately expose a published map or share exports. This project is not affiliated with Google Street View.
 
