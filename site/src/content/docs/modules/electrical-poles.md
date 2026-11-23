@@ -7,7 +7,9 @@ sidebar:
 
 Electrical Poles Detection 1.1.0 estimates the locations of concrete, generic, metal and wood poles from processed survey photos.
 
-The portal supports this module through the ZIP installer. Obtain the module ZIP and a trusted model separately. The public SiteVerum 2.1 release includes the portal integration and this guide.
+[Download Electrical Poles Detection 1.1.0](https://github.com/markfishurupa-dot/streetview-v2/releases/download/v2.1.0/streetview-poles-detection-1.1.0.zip) · [Download the default checkpoint](https://github.com/markfishurupa-dot/streetview-v2/releases/download/v2.1.0/pole_yolo11s_best.pt) · [Browse the module source](https://github.com/markfishurupa-dot/streetview-v2/tree/poles-detection-v1.1.0/modules/poles-detection)
+
+Mark Urupa fine-tuned the default checkpoint from **Ultralytics YOLO11s** (`yolo11s.pt`) using internally captured and labeled imagery. [Model attribution and training configuration](https://github.com/markfishurupa-dot/streetview-v2/blob/poles-detection-v1.1.0/docs/models/pole-yolo11s.md)
 
 ## How detections become map points
 
@@ -21,7 +23,7 @@ YOLO finds a bounding box and class for each likely pole in a photo. The module 
 2. Install the Electrical Poles Detection ZIP and open a processed survey. Choose **Electrical Poles Detection 1.1.0**. The default checkpoint is provisioned separately. To use a regional model, choose **Add model**, upload a trusted Ultralytics object-detection `.pt` checkpoint, and select it under **YOLO model**.
 3. If your checkpoint uses different labels, map them during upload. For example, `{"utility_pole":"pole_generic"}` maps a custom label to the generic pole class. The supported labels are `pole_beton`, `pole_generic`, `pole_metal` and `pole_wood`.
 4. Set the confidence threshold and image size. Match the field of view, projection and clockwise offset to your camera mount. Choose the route-distance limits and roadside snapping. **Advanced settings** include frame limits, bounding-box checks, and geometry thresholds.
-5. Choose whether to keep results temporary, then select **Run module**. For the default model provisioning command and diagnostic file reference, see the [operator guide](https://github.com/markfishurupa-dot/streetview-v2/blob/v2.1.0/docs/modular-processing.md).
+5. Choose whether to keep results temporary, then select **Run module**. For the default model provisioning command and diagnostic file reference, see the [operator guide](https://github.com/markfishurupa-dot/streetview-v2/blob/poles-detection-v1.1.0/docs/modular-processing.md).
 
 ![Additional Processing settings for Electrical Poles Detection, including model, device and camera geometry](/streetview-v2/images/modules/poles-settings.png)
 

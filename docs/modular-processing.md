@@ -27,7 +27,7 @@ Uploading the same archive again returns the existing version. If the package ha
 
 ### Electrical poles
 
-Obtain the Electrical Poles Detection 1.1.0 package separately. To use its default model, put the separately obtained checkpoint in the local provisioned model directory. Replace `C:\path\to` with the directory containing your checkpoint.
+Download the [Electrical Poles Detection 1.1.0 package](https://github.com/markfishurupa-dot/streetview-v2/releases/download/v2.1.0/streetview-poles-detection-1.1.0.zip) and the [default YOLO11s pole checkpoint](https://github.com/markfishurupa-dot/streetview-v2/releases/download/v2.1.0/pole_yolo11s_best.pt). Put the checkpoint in the provisioned model directory. Replace `C:\path\to` with the directory containing your download.
 
 ```powershell
 New-Item -ItemType Directory -Force -Path deploy/module-models | Out-Null
@@ -35,7 +35,7 @@ Copy-Item -LiteralPath 'C:\path\to\pole_yolo11s_best.pt' -Destination deploy/mod
 Get-FileHash -LiteralPath deploy/module-models/pole_yolo11s_best.pt -Algorithm SHA256
 ```
 
-Expected SHA-256 is `80f281ec613757df2934b258afa9b578ae074af16e7393b87cd2a1b33e283cb6`. The local pole package includes the adapted processing source and excludes the checkpoint, training inputs and survey imagery. Its upstream licensing and distribution notes are in [Modular processing research](modular-processing-research.md).
+Expected SHA-256 is `80f281ec613757df2934b258afa9b578ae074af16e7393b87cd2a1b33e283cb6`. The module ZIP contains the processing source. See the [model card](models/pole-yolo11s.md) for provenance, licensing and training settings.
 
 Install `streetview-poles-detection-1.1.0.zip` through **Modules → Install ZIP**. Process a survey, select **Electrical Poles Detection** under **Additional Processing**, choose the parameters, and click **Run module**. The run has its own progress, cancellation and logs. If cache-compatible detection results exist for the same source run, the new execution can reuse pixel-space detections while recomputing geometry. Moving a survey point creates a new source processing run and invalidates that detection cache.
 

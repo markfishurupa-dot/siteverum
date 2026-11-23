@@ -13,7 +13,7 @@ Reviewed on 21 November 2026.
 
 The queue uses the application's PostgreSQL pattern and an original file-based handoff to a dedicated networkless Compose runner. Survey data stays in the broker's volume. The runner sees a staged read-only copy of one run and a separate output volume. No Airflow or Argo source or dependency is included.
 
-The optional ML image installs the detector's dependencies separately from the API. Python packages retain their upstream distribution metadata and notices. Review the [Ultralytics license](https://github.com/ultralytics/ultralytics/blob/main/LICENSE) and [PyTorch licenses and bundled notices](https://github.com/pytorch/pytorch/blob/main/LICENSE) before any external distribution. The pole ZIP excludes the trained checkpoint, training data, and field photos. The supplied detector source had no separate redistribution notice. The pole package is prepared for the owner's local use pending confirmation of source and model redistribution terms.
+The optional ML image installs the detector's dependencies separately from the API. Python packages retain their upstream distribution metadata and notices. Review the [Ultralytics license](https://github.com/ultralytics/ultralytics/blob/main/LICENSE) and [PyTorch licenses and bundled notices](https://github.com/pytorch/pytorch/blob/main/LICENSE) before any external distribution. The pole ZIP excludes the trained checkpoint, training data, and field photos. The project owner authorized distribution of the adapted detector source under AGPL-3.0. The module archive contains source and its license. A separately obtained checkpoint has its own distribution terms.
 
 
 ## Temporary map review
