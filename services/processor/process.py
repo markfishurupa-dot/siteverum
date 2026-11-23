@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import Any
 if __package__:
     from . import preflight
     from .coordinates import apply_correction, point_identity
@@ -47,27 +48,36 @@ def sampled_fixes(fixes, mode, interval, max_accuracy):
               (max_accuracy is None or (_has_value(r.get("accuracy_m")) and float(r["accuracy_m"]) <= max_accuracy))]
     if not usable or mode == "gps_fix":
         return usable
-    result = [usable[0]]
-    next_step = interval
+    result: list[dict[str, Any]] = [dict(usable[0], interpolated=False, fix_gap_ms=0)]
+    step_index = 1
+    step_tolerance = 1e-9  # Only absorb floating-point roundoff, not a time or distance window.
     cumulative = 0.0
     start = int(usable[0]["video_elapsed_ms"])
     for previous, following in zip(usable, usable[1:]):
         a, b = int(previous["video_elapsed_ms"]), int(following["video_elapsed_ms"])
+        distance = preflight.haversine(float(previous["lat"]), float(previous["lon"]),
+                                       float(following["lat"]), float(following["lon"]))
         if mode == "time":
             end = (b - start) / 1000
         else:
-            end = cumulative + preflight.haversine(float(previous["lat"]), float(previous["lon"]),
-                                                  float(following["lat"]), float(following["lon"]))
+            end = cumulative + distance
         if end <= cumulative:
             continue
-        while next_step <= end:
+        # Skip estimates across outages or jumps, but retain a fix on the grid.
+        gap_ms = b - a
+        if not (0 < gap_ms <= 10000 and distance <= 40 * (gap_ms / 1000)):
+            step_index = max(step_index, math.ceil((end - step_tolerance) / interval))
+        while (next_step := step_index * interval) <= end + step_tolerance:
             if len(result) >= 10000:
                 raise ValueError("Sampling exceeds 10,000 images")
+            step_index += 1
+            if math.isclose(next_step, end, rel_tol=0, abs_tol=step_tolerance):
+                result.append(dict(following, interpolated=False, fix_gap_ms=0))
+                break
             fraction = (next_step - cumulative) / (end - cumulative)
-            sample = dict(previous)
+            sample = dict(previous, alt_m=None, speed_mps=None, bearing=None, accuracy_m=None,
+                          timestamp_utc=None, interpolated=True, fix_gap_ms=gap_ms)
             sample["video_elapsed_ms"] = round(a + fraction * (b - a))
-            sample["interpolated"] = True
-            sample["fix_gap_ms"] = b - a
             delta = (float(following["lon"]) - float(previous["lon"]) + 180) % 360 - 180
             sample["lon"] = (float(previous["lon"]) + delta * fraction + 180) % 360 - 180
             sample["lat"] = float(previous["lat"]) + fraction * (float(following["lat"]) - float(previous["lat"]))
@@ -75,7 +85,7 @@ def sampled_fixes(fixes, mode, interval, max_accuracy):
                 sample["timestamp_utc"] = round(
                     int(previous["timestamp_utc"]) + fraction * (int(following["timestamp_utc"]) - int(previous["timestamp_utc"]))
                 )
-            for numeric_field in ("alt_m", "speed_mps", "accuracy_m"):
+            for numeric_field in ("alt_m", "speed_mps"):
                 if _has_value(previous.get(numeric_field)) and _has_value(following.get(numeric_field)):
                     p_val = float(previous[numeric_field])
                     f_val = float(following[numeric_field])
@@ -83,16 +93,8 @@ def sampled_fixes(fixes, mode, interval, max_accuracy):
             if _has_value(previous.get("bearing")) and _has_value(following.get("bearing")):
                 sample["bearing"] = round(
                     _interpolate_bearing(float(previous["bearing"]), float(following["bearing"]), fraction), 2
-                )
-            # Avoid interpolating across long outages or clear position jumps.
-            distance = preflight.haversine(float(previous["lat"]), float(previous["lon"]),
-                                           float(following["lat"]), float(following["lon"]))
-            if b - a <= 10000 and distance / ((b - a) / 1000) <= 40:
-                result.append(sample)
-            else:
-                next_step = (math.floor(end / interval) + 1) * interval
-                break
-            next_step += interval
+                ) % 360.0
+            result.append(sample)
         cumulative = end
     return result
 
@@ -142,9 +144,18 @@ def run(video, log, output, max_snap=MAX_SNAP_SECONDS, *, sampling="gps_fix",
             if not fix.get("manual"):
                 used.add(index)
             image=f"images/{len(rows):06d}.jpg"
-            rows.append({'frame_index':len(rows),'image_path':image,'requested_ms':ms,'actual_pts':times[index],'source_frame_index':index,'lat':float(fix['lat']),'lon':float(fix['lon']),'accuracy_m':fix.get('accuracy_m',''),'bearing':fix.get('bearing',''),
-                         'speed_mps':fix.get('speed_mps',''),'alt_m':fix.get('alt_m',''),
-                         'manual':fix.get('manual',False),'interpolated':fix.get('interpolated',False),'fix_gap_ms':fix.get('fix_gap_ms',0)})
+            timestamp_utc = fix.get("timestamp_utc")
+            accuracy_m = None if fix.get("manual") or fix.get("interpolated") else fix.get("accuracy_m")
+            rows.append({
+                "frame_index": len(rows), "image_path": image, "requested_ms": ms,
+                "actual_pts": times[index], "source_frame_index": index,
+                "lat": float(fix["lat"]), "lon": float(fix["lon"]),
+                "timestamp_utc": int(str(timestamp_utc)) if _has_value(timestamp_utc) else None,
+                "accuracy_m": accuracy_m if _has_value(accuracy_m) else None,
+                "bearing": fix.get("bearing", ""), "speed_mps": fix.get("speed_mps", ""),
+                "alt_m": fix.get("alt_m", ""), "manual": fix.get("manual", False),
+                "interpolated": fix.get("interpolated", False), "fix_gap_ms": fix.get("fix_gap_ms", 0),
+            })
         if not rows: raise ValueError('No valid frames within tolerance')
         features = [
             {"type": "Feature", "geometry": {"type": "Point", "coordinates": [row["lon"], row["lat"]]},
