@@ -13,9 +13,19 @@ Mark Urupa fine-tuned the default checkpoint from **Ultralytics YOLO11s** (`yolo
 
 ## How detections become map points
 
-YOLO finds a bounding box and class for each likely pole in a photo. The module uses the horizontal position of the box, GPS position, travel bearing and camera settings to estimate a viewing ray. It looks for overlapping observations of the same pole across frames, clusters nearby intersections and removes likely duplicates. Optional roadside snapping adjusts the displayed position while retaining the original estimate. Model confidence describes recognition. Supporting frames, camera separation and GPS quality help you judge the location.
+**1. Locate the camera.** When you sample by time or distance, SiteVerum estimates a photo's position between two usable GPS fixes. If the requested sample falls halfway through the interval, the estimated position is halfway along the straight segment between the fixes. For example, a sample at 2 seconds between fixes 4 seconds apart uses the same midpoint as a sample 10 metres into a 20-metre segment. GPS-fix sampling uses the recorded positions. The processor skips interpolation across long gaps or clear position jumps.
+
+![Two recorded GPS fixes four seconds and 20 metres apart, with the estimated photo position halfway between them](/siteverum/images/modules/pole-gps-interpolation.png)
+
+**2. Estimate the direction to the pole.** YOLO identifies a bounding box and class for each likely pole. The horizontal centre of the box, the travel bearing and the configured camera field of view, projection and offset determine the direction of a viewing ray from the photo position.
 
 ![Two survey photos showing the same utility pole outlined by detection boxes](/siteverum/images/modules/poles-evidence.png)
+
+**3. Combine observations from different photos.** The module compares rays from nearby frames within a recording. It checks that the camera positions are far enough apart, that the rays meet at a useful angle, and that the candidate is within range. A crossing gives a candidate pole location. If the rays narrowly miss and their tolerance bands overlap, the module can use the midpoint between the closest points on the two rays.
+
+![Plan view showing two buffered viewing rays from different photo positions crossing at a candidate pole location](/siteverum/images/modules/pole-ray-intersection.png)
+
+**4. Consolidate the candidates.** The module clusters nearby candidates and removes likely duplicates. Optional roadside snapping moves the displayed point to the configured offset and retains the original estimate. Use the supporting photos, camera separation and GPS quality to judge how well the location is supported.
 
 ## Configure and run
 
